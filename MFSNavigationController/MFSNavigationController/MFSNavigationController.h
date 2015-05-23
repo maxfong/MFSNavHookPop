@@ -18,7 +18,7 @@
 
 @end
 
-@interface UIViewController (TCTPop) <MFSPopProtocol> @end
+@interface UIViewController (MFSPop) <MFSPopProtocol> @end
 
 @interface MFSNavigationController : UINavigationController @end
 
