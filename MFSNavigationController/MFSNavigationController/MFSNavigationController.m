@@ -50,7 +50,7 @@
 #pragma mark - UINavigationControllerDelegate
 ///TODO:UIViewControllerAnimatedTransitioning
 
-#pragma mark - TCTPopProtocol
+#pragma mark - MFSPopProtocol
 - (NSMutableArray *)popOutControllers {
     return _popOutControllers ?: ({_popOutControllers = NSMutableArray.new;});
 }
