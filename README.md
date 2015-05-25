@@ -10,8 +10,13 @@
 }
 </code></pre>
 pop时，跳过未加入堆栈的ViewController；
+<br />
+<pre><code>//MFSNavigationController的属性:
+@property (nonatomic, assign) BOOL wantsPopLast;
+</code></pre>
+最后的ViewController操作失败，需要返回上一个ViewController，nav设置wantsPopLast为YES；
 
-
+###兼容性
 支持iOS7滑动返回；<br />
 iOS6功能未测试，设置滑动NavigationController类继承MFSNavigationController后，应该能达到相同的效果；
 

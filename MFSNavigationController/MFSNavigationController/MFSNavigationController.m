@@ -4,7 +4,7 @@
 //
 //  Created by maxfong on 15/5/23.
 //
-//
+//  https://github.com/maxfong/MFSNavigationController
 
 #import "MFSNavigationController.h"
 #import <Foundation/Foundation.h>
@@ -13,6 +13,7 @@
 
 @property (nonatomic, strong) NSMutableArray *popOutControllers;
 @property (nonatomic, assign, getter=isPopFilter) BOOL popFilter;
+@property (nonatomic, weak) UIViewController *removedPopOutViewController;
 
 @end
 
@@ -41,7 +42,7 @@
 
 #pragma mark - UIGestureRecognizerDelegate
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer {
-    if (self.popOutControllers.count <= 1) {
+    if (self.viewControllers.count <= 1) {
         return NO;
     }
     return YES;
@@ -64,16 +65,27 @@
     }
     if (popOut && self.popOutControllers.count > 1) {   //rootViewController cannot remove
         [self.popOutControllers removeObject:lastViewController];
+        self.removedPopOutViewController = lastViewController;
         [self setPopFilter:YES];
     }
     if (![self.popOutControllers containsObject:viewController]) {
         [self.popOutControllers addObject:viewController];
+    }
+    if (self.wantsPopLast) {
+        [self setWantsPopLast:!self.wantsPopLast];
     }
     [super pushViewController:viewController animated:animated];
 }
 
 #pragma mark - pop
 - (UIViewController *)popViewControllerAnimated:(BOOL)animated {
+    if (self.wantsPopLast) {
+        [self setWantsPopLast:!self.wantsPopLast];
+        if (self.removedPopOutViewController) {
+            NSUInteger index = self.popOutControllers.count - 1;
+            [self.popOutControllers insertObject:self.removedPopOutViewController atIndex:index];
+        }
+    }
     if (self.isPopFilter) {
         [self setPopFilter:!self.isPopFilter];
         self.viewControllers = self.popOutControllers;
@@ -83,15 +95,13 @@
     return poppedController;
 }
 
-- (NSArray *)popToViewController:(UIViewController *)viewController animated:(BOOL)animated
-{
+- (NSArray *)popToViewController:(UIViewController *)viewController animated:(BOOL)animated {
     NSArray *poppedControllers = [super popToViewController:viewController animated:animated];
     [self.popOutControllers removeObjectsInArray:poppedControllers];
     return poppedControllers;
 }
 
-- (NSArray *)popToRootViewControllerAnimated:(BOOL)animated
-{
+- (NSArray *)popToRootViewControllerAnimated:(BOOL)animated {
     NSUInteger removeControllerCount = self.popOutControllers.count - 1;
     [self.popOutControllers removeObjectsInRange:NSMakeRange(1, removeControllerCount)];
     return [super popToRootViewControllerAnimated:animated];
