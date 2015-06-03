@@ -23,6 +23,9 @@
     [super viewDidLoad];
     // Do any additional setup after loading the view from its nib.
     ((MFSNavigationController *)self.navigationController).wantsPopLast = YES;
+    
+    //use UINavigationController+MFSPopOut
+    //self.navigationController.wantsPopLast = YES;
 }
 
 - (void)didReceiveMemoryWarning {

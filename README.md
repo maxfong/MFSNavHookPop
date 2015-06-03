@@ -22,3 +22,6 @@ iOS6功能未测试，设置滑动NavigationController类继承MFSNavigationCont
 
 ####Demo演示了A、B、C、D 4个页面push后再pop，跳过了A、B、C进入rootViewController；
 ![Alt text](MFSNavigationControllerDemo.gif)
+
+####update
+新增UINavigationController+MFSPopOut，不影响UINavigationController继承

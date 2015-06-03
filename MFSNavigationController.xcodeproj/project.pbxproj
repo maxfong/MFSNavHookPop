@@ -19,6 +19,7 @@
 		A994F9D71B106BB2006A2356 /* BViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A994F9D11B106BB2006A2356 /* BViewController.m */; };
 		A994F9D81B106BB2006A2356 /* CViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A994F9D31B106BB2006A2356 /* CViewController.m */; };
 		A994F9D91B106BB2006A2356 /* DViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A994F9D51B106BB2006A2356 /* DViewController.m */; };
+		A9D800451B1EFB26008E262D /* UINavigationController+MFSPopOut.m in Sources */ = {isa = PBXBuildFile; fileRef = A9D800441B1EFB26008E262D /* UINavigationController+MFSPopOut.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -55,6 +56,8 @@
 		A994F9D31B106BB2006A2356 /* CViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CViewController.m; sourceTree = "<group>"; };
 		A994F9D41B106BB2006A2356 /* DViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DViewController.h; sourceTree = "<group>"; };
 		A994F9D51B106BB2006A2356 /* DViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DViewController.m; sourceTree = "<group>"; };
+		A9D800431B1EFB26008E262D /* UINavigationController+MFSPopOut.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "UINavigationController+MFSPopOut.h"; sourceTree = "<group>"; };
+		A9D800441B1EFB26008E262D /* UINavigationController+MFSPopOut.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "UINavigationController+MFSPopOut.m"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -98,6 +101,7 @@
 			children = (
 				A994F9CD1B106B9D006A2356 /* ViewControllers */,
 				A994F9C91B106B77006A2356 /* MFSNavigationController */,
+				A9D800421B1EFB26008E262D /* UINavigationController+MFSPopOut */,
 				A994F9A71B106B50006A2356 /* AppDelegate.h */,
 				A994F9A81B106B50006A2356 /* AppDelegate.m */,
 				A994F9AA1B106B50006A2356 /* ViewController.h */,
@@ -158,6 +162,15 @@
 				A994F9D51B106BB2006A2356 /* DViewController.m */,
 			);
 			name = ViewControllers;
+			sourceTree = "<group>";
+		};
+		A9D800421B1EFB26008E262D /* UINavigationController+MFSPopOut */ = {
+			isa = PBXGroup;
+			children = (
+				A9D800431B1EFB26008E262D /* UINavigationController+MFSPopOut.h */,
+				A9D800441B1EFB26008E262D /* UINavigationController+MFSPopOut.m */,
+			);
+			path = "UINavigationController+MFSPopOut";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -262,6 +275,7 @@
 			files = (
 				A994F9AC1B106B50006A2356 /* ViewController.m in Sources */,
 				A994F9D71B106BB2006A2356 /* BViewController.m in Sources */,
+				A9D800451B1EFB26008E262D /* UINavigationController+MFSPopOut.m in Sources */,
 				A994F9D61B106BB2006A2356 /* AViewController.m in Sources */,
 				A994F9A91B106B50006A2356 /* AppDelegate.m in Sources */,
 				A994F9CC1B106B77006A2356 /* MFSNavigationController.m in Sources */,
@@ -462,6 +476,7 @@
 				A994F9C51B106B50006A2356 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		A994F9C61B106B50006A2356 /* Build configuration list for PBXNativeTarget "MFSNavigationControllerTests" */ = {
 			isa = XCConfigurationList;
@@ -470,6 +485,7 @@
 				A994F9C81B106B50006A2356 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
