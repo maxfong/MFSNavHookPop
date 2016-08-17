@@ -12,14 +12,13 @@
 
 @interface NSObject (Swizzle)
 
-+ (void)mfs_SwizzleSelector:(SEL)originalSelector newSelector:(SEL)newSelector;
++ (void)mfs_swizzleSelector:(SEL)originalSelector newSelector:(SEL)newSelector;
 
 @end
 
 @implementation NSObject (Swizzle)
 
-+ (void)mfs_SwizzleSelector:(SEL)originalSelector newSelector:(SEL)newSelector;
-{
++ (void)mfs_swizzleSelector:(SEL)originalSelector newSelector:(SEL)newSelector {
     Method originalMethod = class_getInstanceMethod(self, originalSelector);
     Method newMethod = class_getInstanceMethod(self, newSelector);
     
@@ -41,16 +40,39 @@
 
 @end
 
-static char *kPopOutControllers = "popOutControllers";
-static char *kPopFilter = "popFilter";
-static char *kRemovedPopOutViewController = "removedPopOutViewController";
-static char *kWantsPopLast = "wantsPopLast";
+@interface MFSPopAnimation : NSObject <UIViewControllerAnimatedTransitioning> @end
+
+@implementation MFSPopAnimation
+
+- (NSTimeInterval)transitionDuration:(id <UIViewControllerContextTransitioning>)transitionContext {
+    return 0.25;
+}
+- (void)animateTransition:(id <UIViewControllerContextTransitioning>)transitionContext {
+    UIViewController *fromViewController = [transitionContext viewControllerForKey:UITransitionContextFromViewControllerKey];
+    UIViewController *toViewController = [transitionContext viewControllerForKey:UITransitionContextToViewControllerKey];
+    UIView *containerView = [transitionContext containerView];
+    [containerView insertSubview:toViewController.view belowSubview:fromViewController.view];
+    
+    NSTimeInterval duration = [self transitionDuration:transitionContext];
+    [UIView animateWithDuration:duration animations:^{
+        fromViewController.view.transform = CGAffineTransformMakeTranslation([UIScreen mainScreen].bounds.size.width, 0);
+    } completion:^(BOOL finished) {
+        [transitionContext completeTransition:!transitionContext.transitionWasCancelled];
+    }];
+}
+
+@end
 
 @interface UINavigationController () <UINavigationControllerDelegate, UIGestureRecognizerDelegate>
 
 @property (nonatomic, strong) NSMutableArray *popOutControllers;
 @property (nonatomic, assign, getter=isPopFilter) BOOL popFilter;
 @property (nonatomic, weak) UIViewController *removedPopOutViewController;
+
+//Drag Back callback
+@property (nonatomic, strong) UIPercentDrivenInteractiveTransition *interactivePopTransition;
+@property (nonatomic, weak) UIViewController *popFromViewController;
+@property (nonatomic, strong) UIPanGestureRecognizer *popRecognizer;
 
 @end
 
@@ -61,27 +83,27 @@ static char *kWantsPopLast = "wantsPopLast";
     dispatch_once(&onceToken, ^{
         SEL iwrvc = @selector(initWithRootViewController:);
         SEL mfs_iwrvc = @selector(mfs_initWithRootViewController:);
-        [self mfs_SwizzleSelector:iwrvc newSelector:mfs_iwrvc];
+        [self mfs_swizzleSelector:iwrvc newSelector:mfs_iwrvc];
         
         SEL vdl = @selector(viewDidLoad);
         SEL mfs_vdl = @selector(mfs_viewDidLoad);
-        [self mfs_SwizzleSelector:vdl newSelector:mfs_vdl];
+        [self mfs_swizzleSelector:vdl newSelector:mfs_vdl];
         
         SEL pvca = @selector(pushViewController:animated:);
         SEL mfs_pvca = @selector(mfs_pushViewController:animated:);
-        [self mfs_SwizzleSelector:pvca newSelector:mfs_pvca];
+        [self mfs_swizzleSelector:pvca newSelector:mfs_pvca];
         
         SEL povca = @selector(popViewControllerAnimated:);
         SEL mfs_povca = @selector(mfs_popViewControllerAnimated:);
-        [self mfs_SwizzleSelector:povca newSelector:mfs_povca];
+        [self mfs_swizzleSelector:povca newSelector:mfs_povca];
         
         SEL ptvca = @selector(popToViewController:animated:);
         SEL mfs_ptvca = @selector(mfs_popToViewController:animated:);
-        [self mfs_SwizzleSelector:ptvca newSelector:mfs_ptvca];
+        [self mfs_swizzleSelector:ptvca newSelector:mfs_ptvca];
         
         SEL ptrvca = @selector(popToRootViewControllerAnimated:);
         SEL mfs_ptrvca = @selector(mfs_popToRootViewControllerAnimated:);
-        [self mfs_SwizzleSelector:ptrvca newSelector:mfs_ptrvca];
+        [self mfs_swizzleSelector:ptrvca newSelector:mfs_ptrvca];
     });
 }
 
@@ -96,29 +118,80 @@ static char *kWantsPopLast = "wantsPopLast";
     if (rootViewController && self.popOutControllers.count == 0) {
         [self.popOutControllers addObject:rootViewController];
     }
+    [self resetPopOutDelegate];
+}
+
+- (void)resetPopOutDelegate {
     if ([self respondsToSelector:@selector(interactivePopGestureRecognizer)]) {
-        self.interactivePopGestureRecognizer.enabled = YES;
-        self.interactivePopGestureRecognizer.delegate = self;
+        [self configBackGestureRecognizer];
+        self.delegate = self;
+    }
+}
+
+- (void)configBackGestureRecognizer {
+    self.interactivePopGestureRecognizer.enabled = NO;
+    [self.interactivePopGestureRecognizer.view addGestureRecognizer:self.popRecognizer];
+}
+
+- (void)handleControllerPop:(UIPanGestureRecognizer *)recognizer {
+    CGFloat progress = MIN(1.0, MAX(0.0, [recognizer translationInView:recognizer.view].x / recognizer.view.bounds.size.width));
+    if (recognizer.state == UIGestureRecognizerStateBegan) {
+        self.interactivePopTransition = [[UIPercentDrivenInteractiveTransition alloc] init];
+        [self popViewControllerAnimated:YES];
+    }
+    else if (recognizer.state == UIGestureRecognizerStateChanged) {
+        [self.interactivePopTransition updateInteractiveTransition:progress];
+    }
+    else if (recognizer.state == UIGestureRecognizerStateEnded || recognizer.state == UIGestureRecognizerStateCancelled) {
+        if (progress > 0.5) {
+            BOOL hookPop = NO;
+            if ([self.popFromViewController respondsToSelector:@selector(shouldHookPopAction)]) {
+                hookPop = [self.popFromViewController performSelector:@selector(shouldHookPopAction)];
+            }
+            if (!hookPop) {
+                if ([self.popFromViewController respondsToSelector:@selector(popActionDidFinish)]) {
+                    hookPop = [self.popFromViewController performSelector:@selector(popActionDidFinish)];
+                }
+                [self.interactivePopTransition finishInteractiveTransition];
+                return;
+            }
+        }
+        [self.interactivePopTransition cancelInteractiveTransition];
+        self.interactivePopTransition = nil;
     }
 }
 
 #pragma mark - UIGestureRecognizerDelegate
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer {
-    if (self.viewControllers.count <= 1) {
-        return NO;
-    }
-    return YES;
+    return (self.viewControllers.count > 1);
 }
 
 #pragma mark - UINavigationControllerDelegate
-///TODO:UIViewControllerAnimatedTransitioning
+- (id<UIViewControllerAnimatedTransitioning>)navigationController:(UINavigationController *)navigationController
+                                  animationControllerForOperation:(UINavigationControllerOperation)operation
+                                               fromViewController:(UIViewController *)fromVC
+                                                 toViewController:(UIViewController *)toVC {
+    if (operation == UINavigationControllerOperationPop) {
+        self.popFromViewController = fromVC;
+        return MFSPopAnimation.new;
+    }
+    return nil;
+}
+
+- (id<UIViewControllerInteractiveTransitioning>)navigationController:(UINavigationController *)navigationController
+                         interactionControllerForAnimationController:(id<UIViewControllerAnimatedTransitioning>)animationController {
+    if ([animationController isKindOfClass:[MFSPopAnimation class]]) {
+        return self.interactivePopTransition;
+    }
+    return nil;
+}
 
 #pragma mark - pushViewController
 - (void)mfs_pushViewController:(UIViewController *)viewController animated:(BOOL)animated {
     BOOL popOut = NO;
     UIViewController *lastViewController = self.popOutControllers.lastObject;
-    if ([lastViewController respondsToSelector:@selector(shouldPopOut)]) {
-        popOut = [lastViewController shouldPopOut];
+    if ([lastViewController respondsToSelector:@selector(shouldPopActionSkipController)]) {
+        popOut = [lastViewController shouldPopActionSkipController];
     }
     if (popOut && self.popOutControllers.count > 1) {   //rootViewController cannot remove
         [self.popOutControllers removeObject:lastViewController];
@@ -166,34 +239,61 @@ static char *kWantsPopLast = "wantsPopLast";
 
 #pragma mark - AssociatedObject
 - (void)setPopOutControllers:(NSMutableArray *)popOutControllers {
-    objc_setAssociatedObject(self, kPopOutControllers, popOutControllers, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(self, @selector(popOutControllers), popOutControllers, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 - (NSMutableArray *)popOutControllers {
-    NSMutableArray *_popOutControllers = objc_getAssociatedObject(self, kPopOutControllers);
+    NSMutableArray *_popOutControllers = objc_getAssociatedObject(self, _cmd);
     return _popOutControllers ?: ({self.popOutControllers = NSMutableArray.new;});
 }
 
 - (void)setPopFilter:(BOOL)popFilter {
-    objc_setAssociatedObject(self, kPopFilter, @(popFilter), OBJC_ASSOCIATION_ASSIGN);
+    objc_setAssociatedObject(self, @selector(isPopFilter), @(popFilter), OBJC_ASSOCIATION_ASSIGN);
 }
 - (BOOL)isPopFilter {
-    NSNumber *popFileter = objc_getAssociatedObject(self, kPopFilter);
+    NSNumber *popFileter = objc_getAssociatedObject(self, _cmd);
     return popFileter.boolValue;
 }
 
 - (void)setRemovedPopOutViewController:(UIViewController *)removedPopOutViewController{
-    objc_setAssociatedObject(self, kRemovedPopOutViewController, removedPopOutViewController, OBJC_ASSOCIATION_ASSIGN);
+    objc_setAssociatedObject(self, @selector(removedPopOutViewController), removedPopOutViewController, OBJC_ASSOCIATION_ASSIGN);
 }
 - (UIViewController *)removedPopOutViewController {
-    return objc_getAssociatedObject(self, kRemovedPopOutViewController);
+    return objc_getAssociatedObject(self, _cmd);
 }
 
 - (void)setWantsPopLast:(BOOL)wantsPopLast {
-    objc_setAssociatedObject(self, kWantsPopLast, @(wantsPopLast), OBJC_ASSOCIATION_ASSIGN);
+    objc_setAssociatedObject(self, @selector(wantsPopLast), @(wantsPopLast), OBJC_ASSOCIATION_ASSIGN);
 }
 - (BOOL)wantsPopLast {
-    NSNumber *wantsPopLast = objc_getAssociatedObject(self, kWantsPopLast);
+    NSNumber *wantsPopLast = objc_getAssociatedObject(self, _cmd);
     return wantsPopLast.boolValue;
+}
+
+- (void)setInteractivePopTransition:(UIPercentDrivenInteractiveTransition *)interactivePopTransition {
+    objc_setAssociatedObject(self, @selector(interactivePopTransition), interactivePopTransition, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+- (UIPercentDrivenInteractiveTransition *)interactivePopTransition {
+    return objc_getAssociatedObject(self, _cmd);
+}
+- (void)setPopFromViewController:(UIViewController *)popFromViewController {
+    objc_setAssociatedObject(self, @selector(popFromViewController), popFromViewController, OBJC_ASSOCIATION_ASSIGN);
+}
+- (UIViewController *)popFromViewController {
+    return objc_getAssociatedObject(self, _cmd);
+}
+
+- (void)setPopRecognizer:(UIPanGestureRecognizer *)popRecognizer {
+    objc_setAssociatedObject(self, @selector(popRecognizer), popRecognizer, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+- (UIPanGestureRecognizer *)popRecognizer {
+    UIPanGestureRecognizer *popRecognizer = objc_getAssociatedObject(self, _cmd) ?: ({
+        UIPanGestureRecognizer *popRecognizer = [[UIPanGestureRecognizer alloc] init];
+        popRecognizer.delegate = self;
+        popRecognizer.maximumNumberOfTouches = 1;
+        [popRecognizer addTarget:self action:@selector(handleControllerPop:)];
+        self.popRecognizer = popRecognizer;
+    });
+    return popRecognizer;
 }
 
 @end
