@@ -14,17 +14,29 @@
  */
 @property (nonatomic, assign) BOOL wantsPopLast;
 
+/** set the nav of interactivePopGestureRecognizer.delegate & delegate
+ */
+- (void)resetPopOutDelegate;
+
 @end
 
-@protocol MFSPopProtocol <NSObject>
+@protocol MFSPopActionProtocol <NSObject>
 
 @optional
 /** navigationController pop，out current ViewController
  tip：rootViewController cannot remove
  */
-- (BOOL)shouldPopOut;
+- (BOOL)shouldPopActionSkipController;
+
+/** pop finish can do some clean
+ */
+- (void)popActionDidFinish;
+
+/** hook pop action, custom operation
+ */
+- (BOOL)shouldHookPopAction;
 
 @end
 
-@interface UIViewController (MFSPop) <MFSPopProtocol> @end
+@interface UIViewController (MFSPopAction) <MFSPopActionProtocol> @end
 
