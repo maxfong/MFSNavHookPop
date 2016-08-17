@@ -14,10 +14,6 @@
  */
 @property (nonatomic, assign) BOOL wantsPopLast;
 
-/** set the nav of interactivePopGestureRecognizer.delegate & delegate
- */
-- (void)resetPopOutDelegate;
-
 @end
 
 @protocol MFSPopActionProtocol <NSObject>
