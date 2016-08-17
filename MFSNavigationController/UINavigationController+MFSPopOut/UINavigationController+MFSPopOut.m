@@ -104,6 +104,14 @@
         SEL ptrvca = @selector(popToRootViewControllerAnimated:);
         SEL mfs_ptrvca = @selector(mfs_popToRootViewControllerAnimated:);
         [self mfs_swizzleSelector:ptrvca newSelector:mfs_ptrvca];
+        
+        SEL sd = @selector(setDelegate:);
+        SEL mfs_sd = @selector(mfs_setDelegate:);
+        [self mfs_swizzleSelector:sd newSelector:mfs_sd];
+        
+        SEL ipgr = @selector(interactivePopGestureRecognizer);
+        SEL mfs_ipgr = @selector(mfs_interactivePopGestureRecognizer);
+        [self mfs_swizzleSelector:ipgr newSelector:mfs_ipgr];
     });
 }
 
@@ -118,10 +126,6 @@
     if (rootViewController && self.popOutControllers.count == 0) {
         [self.popOutControllers addObject:rootViewController];
     }
-    [self resetPopOutDelegate];
-}
-
-- (void)resetPopOutDelegate {
     if ([self respondsToSelector:@selector(interactivePopGestureRecognizer)]) {
         [self configBackGestureRecognizer];
         self.delegate = self;
@@ -129,8 +133,8 @@
 }
 
 - (void)configBackGestureRecognizer {
-    self.interactivePopGestureRecognizer.enabled = NO;
-    [self.interactivePopGestureRecognizer.view addGestureRecognizer:self.popRecognizer];
+    self.mfs_interactivePopGestureRecognizer.enabled = NO;
+    [self.mfs_interactivePopGestureRecognizer.view addGestureRecognizer:self.popRecognizer];
 }
 
 - (void)handleControllerPop:(UIPanGestureRecognizer *)recognizer {
@@ -159,6 +163,14 @@
         [self.interactivePopTransition cancelInteractiveTransition];
         self.interactivePopTransition = nil;
     }
+}
+
+#pragma mark - forced to intercept
+- (void)mfs_setDelegate:(id<UINavigationControllerDelegate>)delegate {
+    [self mfs_setDelegate:self];
+}
+- (UIGestureRecognizer *)mfs_interactivePopGestureRecognizer {
+    return nil;
 }
 
 #pragma mark - UIGestureRecognizerDelegate
