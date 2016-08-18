@@ -67,7 +67,7 @@
 
 @property (nonatomic, strong) NSMutableArray *popOutControllers;
 @property (nonatomic, assign, getter=isPopFilter) BOOL popFilter;
-@property (nonatomic, weak) UIViewController *removedPopOutViewController;
+@property (nonatomic, strong) UIViewController *removedPopOutViewController;
 
 //Drag Back callback
 @property (nonatomic, strong) UIPercentDrivenInteractiveTransition *interactivePopTransition;
@@ -137,34 +137,6 @@
     [self.mfs_interactivePopGestureRecognizer.view addGestureRecognizer:self.popRecognizer];
 }
 
-- (void)handleControllerPop:(UIPanGestureRecognizer *)recognizer {
-    CGFloat progress = MIN(1.0, MAX(0.0, [recognizer translationInView:recognizer.view].x / recognizer.view.bounds.size.width));
-    if (recognizer.state == UIGestureRecognizerStateBegan) {
-        self.interactivePopTransition = [[UIPercentDrivenInteractiveTransition alloc] init];
-        [self popViewControllerAnimated:YES];
-    }
-    else if (recognizer.state == UIGestureRecognizerStateChanged) {
-        [self.interactivePopTransition updateInteractiveTransition:progress];
-    }
-    else if (recognizer.state == UIGestureRecognizerStateEnded || recognizer.state == UIGestureRecognizerStateCancelled) {
-        if (progress > 0.5) {
-            BOOL hookPop = NO;
-            if ([self.popFromViewController respondsToSelector:@selector(shouldHookPopAction)]) {
-                hookPop = [self.popFromViewController performSelector:@selector(shouldHookPopAction)];
-            }
-            if (!hookPop) {
-                if ([self.popFromViewController respondsToSelector:@selector(popActionDidFinish)]) {
-                    hookPop = [self.popFromViewController performSelector:@selector(popActionDidFinish)];
-                }
-                [self.interactivePopTransition finishInteractiveTransition];
-                return;
-            }
-        }
-        [self.interactivePopTransition cancelInteractiveTransition];
-        self.interactivePopTransition = nil;
-    }
-}
-
 #pragma mark - forced to intercept
 - (void)mfs_setDelegate:(id<UINavigationControllerDelegate>)delegate {
     [self mfs_setDelegate:self];
@@ -228,6 +200,7 @@
             [self.popOutControllers insertObject:self.removedPopOutViewController atIndex:index];
         }
     }
+    self.removedPopOutViewController = nil;
     if (self.isPopFilter) {
         [self setPopFilter:!self.isPopFilter];
         self.viewControllers = self.popOutControllers;
@@ -267,7 +240,7 @@
 }
 
 - (void)setRemovedPopOutViewController:(UIViewController *)removedPopOutViewController{
-    objc_setAssociatedObject(self, @selector(removedPopOutViewController), removedPopOutViewController, OBJC_ASSOCIATION_ASSIGN);
+    objc_setAssociatedObject(self, @selector(removedPopOutViewController), removedPopOutViewController, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 - (UIViewController *)removedPopOutViewController {
     return objc_getAssociatedObject(self, _cmd);
@@ -306,6 +279,33 @@
         self.popRecognizer = popRecognizer;
     });
     return popRecognizer;
+}
+- (void)handleControllerPop:(UIPanGestureRecognizer *)recognizer {
+    CGFloat progress = MIN(1.0, MAX(0.0, [recognizer translationInView:recognizer.view].x / recognizer.view.bounds.size.width));
+    if (recognizer.state == UIGestureRecognizerStateBegan) {
+        self.interactivePopTransition = [[UIPercentDrivenInteractiveTransition alloc] init];
+        [self popViewControllerAnimated:YES];
+    }
+    else if (recognizer.state == UIGestureRecognizerStateChanged) {
+        [self.interactivePopTransition updateInteractiveTransition:progress];
+    }
+    else if (recognizer.state == UIGestureRecognizerStateEnded || recognizer.state == UIGestureRecognizerStateCancelled) {
+        if (progress > 0.5) {
+            BOOL hookPop = NO;
+            if ([self.popFromViewController respondsToSelector:@selector(shouldHookPopAction)]) {
+                hookPop = [self.popFromViewController performSelector:@selector(shouldHookPopAction)];
+            }
+            if (!hookPop) {
+                if ([self.popFromViewController respondsToSelector:@selector(popActionDidFinish)]) {
+                    hookPop = [self.popFromViewController performSelector:@selector(popActionDidFinish)];
+                }
+                [self.interactivePopTransition finishInteractiveTransition];
+                return;
+            }
+        }
+        [self.interactivePopTransition cancelInteractiveTransition];
+        self.interactivePopTransition = nil;
+    }
 }
 
 @end
