@@ -47,7 +47,7 @@
 - (NSTimeInterval)transitionDuration:(id <UIViewControllerContextTransitioning>)transitionContext {
     return 0.25;
 }
-- (void)animateTransition:(id <UIViewControllerContextTransitioning>)transitionContext {
+- (void)animateTransition:(id<UIViewControllerContextTransitioning>)transitionContext {
     UIViewController *fromViewController = [transitionContext viewControllerForKey:UITransitionContextFromViewControllerKey];
     UIViewController *toViewController = [transitionContext viewControllerForKey:UITransitionContextToViewControllerKey];
     UIView *containerView = [transitionContext containerView];
@@ -68,6 +68,7 @@
 @property (nonatomic, strong) NSMutableArray *popOutControllers;
 @property (nonatomic, assign, getter=isPopFilter) BOOL popFilter;
 @property (nonatomic, strong) UIViewController *removedPopOutViewController;
+@property (nonatomic, strong) NSMutableArray *disableDragBackWhiteList;
 
 //Drag Back callback
 @property (nonatomic, strong) UIPercentDrivenInteractiveTransition *interactivePopTransition;
@@ -132,6 +133,12 @@
     }
 }
 
+- (void)addDisableDragBackWhiteList:(NSArray<NSString *> *)clsNames {
+    if (clsNames.count) {
+        [self.disableDragBackWhiteList addObjectsFromArray:clsNames];
+    }
+}
+
 - (void)configBackGestureRecognizer {
     self.mfs_interactivePopGestureRecognizer.enabled = NO;
     [self.mfs_interactivePopGestureRecognizer.view addGestureRecognizer:self.popRecognizer];
@@ -146,8 +153,14 @@
 }
 
 #pragma mark - UIGestureRecognizerDelegate
-- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer {
-    return (self.viewControllers.count > 1);
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
+    if (self.viewControllers.count <= 1 || self.viewControllers.lastObject.disableDragBack) {
+        return NO;
+    }
+    if ([self.disableDragBackWhiteList containsObject:NSStringFromClass([touch.view class])]) {
+        return NO;
+    }
+    return !self.viewControllers.lastObject.disableDragBack;
 }
 
 #pragma mark - UINavigationControllerDelegate
@@ -254,6 +267,15 @@
     return wantsPopLast.boolValue;
 }
 
+- (void)setDisableDragBackWhiteList:(NSMutableArray *)disableDragBackWhiteList {
+    objc_setAssociatedObject(self, @selector(disableDragBackWhiteList), disableDragBackWhiteList, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+- (NSMutableArray *)disableDragBackWhiteList {
+    return objc_getAssociatedObject(self, _cmd) ?: ({
+        self.disableDragBackWhiteList = NSMutableArray.new;
+    });
+}
+
 - (void)setInteractivePopTransition:(UIPercentDrivenInteractiveTransition *)interactivePopTransition {
     objc_setAssociatedObject(self, @selector(interactivePopTransition), interactivePopTransition, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
@@ -300,12 +322,24 @@
                     hookPop = [self.popFromViewController performSelector:@selector(popActionDidFinish)];
                 }
                 [self.interactivePopTransition finishInteractiveTransition];
+                self.interactivePopTransition = nil;
                 return;
             }
         }
         [self.interactivePopTransition cancelInteractiveTransition];
         self.interactivePopTransition = nil;
     }
+}
+
+@end
+
+@implementation UIViewController (MFSPopAction)
+
+- (void)setDisableDragBack:(BOOL)disableDragBack {
+    objc_setAssociatedObject(self, @selector(disableDragBack), @(disableDragBack), OBJC_ASSOCIATION_ASSIGN);
+}
+- (BOOL)disableDragBack {
+    return ((NSNumber *)objc_getAssociatedObject(self, _cmd)).boolValue;
 }
 
 @end
