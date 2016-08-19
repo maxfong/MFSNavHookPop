@@ -5,18 +5,18 @@
 //  Created by maxfong on 15/5/23.
 //
 //  https://github.com/maxfong/MFSNavigationController
-//  此库会强制修改UINavigationController的delegate和interactivePopGestureRecognizer的取值
+//  使用此库需iOS7及以上，并会强制修改UINavigationController的delegate和interactivePopGestureRecognizer的值，不允许修改
 
 #import <UIKit/UIKit.h>
 
 @interface UINavigationController (MFSPopOut)
 
-/** pop lastViewController because currentViewController process error
-    only support one back
+/** 强制返回上一个页面，哪怕上一个页面设定shouldPopActionSkipController为YES
+    每次push会增加且只是一次的强制返回机会
  */
 @property (nonatomic, assign) BOOL wantsPopLast;
 
-/** disable drag back white list, the class name of the parameter is string
+/** 添加白名单内的View将不再支持触摸滑动返回，参数是类名字符串
  */
 - (void)addDisableDragBackWhiteList:(NSArray<NSString *> *)clsNames;
 
@@ -25,16 +25,17 @@
 @protocol MFSPopActionProtocol <NSObject>
 
 @optional
-/** navigationController pop，out current ViewController
- tip：rootViewController cannot remove
+/** 当前Controller是否需要加入Nav堆栈，默认NO
+    设定YES后，返回（pop）会略过Controller
+    提示：rootViewController不能被移除
  */
 - (BOOL)shouldPopActionSkipController;
 
-/** pop finish can do some clean
+/** Pop操作完成后会执行，做一些清理操作
  */
 - (void)popActionDidFinish;
 
-/** hook pop action, custom operation
+/** 拦截Pop操作并自定义一些操作，如弹出Alert提示是否返回
  */
 - (BOOL)shouldHookPopAction;
 
@@ -42,8 +43,9 @@
 
 @interface UIViewController (MFSPopAction) <MFSPopActionProtocol>
 
-/** the viewController disenable drag back
+/** 关闭当前viewController滑动返回
  */
 @property (nonatomic, assign) BOOL disableDragBack;
 
 @end
+
