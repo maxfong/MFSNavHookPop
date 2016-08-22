@@ -307,12 +307,12 @@
     else if (recognizer.state == UIGestureRecognizerStateEnded || recognizer.state == UIGestureRecognizerStateCancelled) {
         if (progress > 0.5) {
             BOOL hookPop = NO;
-            if ([self.popFromViewController respondsToSelector:@selector(shouldHookPopAction)]) {
-                hookPop = [self.popFromViewController performSelector:@selector(shouldHookPopAction)];
+            if ([self.popFromViewController respondsToSelector:@selector(shouldHookPopAndAction)]) {
+                hookPop = [self.popFromViewController performSelector:@selector(shouldHookPopAndAction)];
             }
             if (!hookPop) {
                 if ([self.popFromViewController respondsToSelector:@selector(popActionDidFinish)]) {
-                    hookPop = [self.popFromViewController performSelector:@selector(popActionDidFinish)];
+                    [self.popFromViewController performSelector:@selector(popActionDidFinish)];
                 }
                 [self.interactivePopTransition finishInteractiveTransition];
                 self.interactivePopTransition = nil;
