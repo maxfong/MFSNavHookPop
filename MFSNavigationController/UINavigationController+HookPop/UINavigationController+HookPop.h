@@ -4,7 +4,7 @@
 //
 //  Created by maxfong on 15/5/23.
 //
-//  https://github.com/maxfong/MFSNavigationController
+//  https://github.com/maxfong/MFSNavHookPop
 //  使用此库需iOS7及以上，并会强制修改UINavigationController的delegate和interactivePopGestureRecognizer的值，不允许修改
 
 #import <UIKit/UIKit.h>
@@ -15,10 +15,6 @@
     每次push会增加且只是一次的强制返回机会
  */
 @property (nonatomic, assign) BOOL wantsPopLast;
-
-/** 添加白名单内的View将不再支持触摸滑动返回，参数是类名字符串
- */
-- (void)addDisableDragBackWhiteList:(NSArray<NSString *> *)clsNames;
 
 @end
 

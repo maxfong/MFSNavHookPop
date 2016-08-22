@@ -4,7 +4,7 @@
 //
 //  Created by maxfong on 15/5/23.
 //
-//  https://github.com/maxfong/MFSNavigationController
+//  https://github.com/maxfong/MFSNavHookPop
 
 #import "UINavigationController+HookPop.h"
 #import <Foundation/Foundation.h>
@@ -61,7 +61,6 @@
 @property (nonatomic, strong) NSMutableArray *popOutControllers;
 @property (nonatomic, assign, getter=isPopFilter) BOOL popFilter;
 @property (nonatomic, strong) UIViewController *removedPopOutViewController;
-@property (nonatomic, strong) NSMutableArray *disableDragBackWhiteList;
 
 //Drag Back callback
 @property (nonatomic, strong) UIPercentDrivenInteractiveTransition *interactivePopTransition;
@@ -126,12 +125,6 @@
     }
 }
 
-- (void)addDisableDragBackWhiteList:(NSArray<NSString *> *)clsNames {
-    if (clsNames.count) {
-        [self.disableDragBackWhiteList addObjectsFromArray:clsNames];
-    }
-}
-
 - (void)configBackGestureRecognizer {
     self.mfs_interactivePopGestureRecognizer.enabled = NO;
     [self.mfs_interactivePopGestureRecognizer.view addGestureRecognizer:self.popRecognizer];
@@ -146,14 +139,12 @@
 }
 
 #pragma mark - UIGestureRecognizerDelegate
-- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
-    if (self.viewControllers.count <= 1 || self.viewControllers.lastObject.disableDragBack) {
+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer {
+    BOOL disableDragBack = self.viewControllers.lastObject.disableDragBack;
+    if (self.viewControllers.count <= 1 || disableDragBack) {
         return NO;
     }
-    if ([self.disableDragBackWhiteList containsObject:NSStringFromClass([touch.view class])]) {
-        return NO;
-    }
-    return !self.viewControllers.lastObject.disableDragBack;
+    return !disableDragBack;
 }
 
 #pragma mark - UINavigationControllerDelegate
