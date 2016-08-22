@@ -14,7 +14,7 @@
 
 @implementation CViewController
 
-- (BOOL)shouldPopOut {
+- (BOOL)shouldPopActionSkipController {
     return YES;
 }
 

@@ -1,5 +1,5 @@
 //
-//  UINavigationController+MFSPopOut.h
+//  UINavigationController+HookPop.h
 //  MFSNavigationController
 //
 //  Created by maxfong on 15/5/23.
@@ -9,7 +9,7 @@
 
 #import <UIKit/UIKit.h>
 
-@interface UINavigationController (MFSPopOut)
+@interface UINavigationController (MFSHookPop)
 
 /** 强制返回上一个页面，哪怕上一个页面设定shouldPopActionSkipController为YES
     每次push会增加且只是一次的强制返回机会

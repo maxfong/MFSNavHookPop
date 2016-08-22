@@ -7,7 +7,7 @@
 //
 
 #import "DViewController.h"
-#import "MFSNavigationController.h"
+#import "UINavigationController+HookPop.h"
 
 @interface DViewController ()
 
@@ -15,17 +15,14 @@
 
 @implementation DViewController
 
-- (BOOL)shouldPopOut {
+- (BOOL)shouldPopActionSkipController {
     return YES;
 }
 
 - (void)viewDidLoad {
     [super viewDidLoad];
     // Do any additional setup after loading the view from its nib.
-    ((MFSNavigationController *)self.navigationController).wantsPopLast = YES;
-    
-    //use UINavigationController+MFSPopOut
-    //self.navigationController.wantsPopLast = YES;
+    self.navigationController.wantsPopLast = YES;
 }
 
 - (void)didReceiveMemoryWarning {

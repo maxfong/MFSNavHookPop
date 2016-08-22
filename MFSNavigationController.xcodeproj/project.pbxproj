@@ -14,12 +14,11 @@
 		A994F9B11B106B50006A2356 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A994F9B01B106B50006A2356 /* Images.xcassets */; };
 		A994F9B41B106B50006A2356 /* LaunchScreen.xib in Resources */ = {isa = PBXBuildFile; fileRef = A994F9B21B106B50006A2356 /* LaunchScreen.xib */; };
 		A994F9C01B106B50006A2356 /* MFSNavigationControllerTests.m in Sources */ = {isa = PBXBuildFile; fileRef = A994F9BF1B106B50006A2356 /* MFSNavigationControllerTests.m */; };
-		A994F9CC1B106B77006A2356 /* MFSNavigationController.m in Sources */ = {isa = PBXBuildFile; fileRef = A994F9CB1B106B77006A2356 /* MFSNavigationController.m */; };
 		A994F9D61B106BB2006A2356 /* AViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A994F9CF1B106BB2006A2356 /* AViewController.m */; };
 		A994F9D71B106BB2006A2356 /* BViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A994F9D11B106BB2006A2356 /* BViewController.m */; };
 		A994F9D81B106BB2006A2356 /* CViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A994F9D31B106BB2006A2356 /* CViewController.m */; };
 		A994F9D91B106BB2006A2356 /* DViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A994F9D51B106BB2006A2356 /* DViewController.m */; };
-		A9D800451B1EFB26008E262D /* UINavigationController+MFSPopOut.m in Sources */ = {isa = PBXBuildFile; fileRef = A9D800441B1EFB26008E262D /* UINavigationController+MFSPopOut.m */; };
+		A9F3D4AD1D6AA17F003D9586 /* UINavigationController+HookPop.m in Sources */ = {isa = PBXBuildFile; fileRef = A9F3D4AC1D6AA17F003D9586 /* UINavigationController+HookPop.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -46,8 +45,6 @@
 		A994F9B91B106B50006A2356 /* MFSNavigationControllerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MFSNavigationControllerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A994F9BE1B106B50006A2356 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A994F9BF1B106B50006A2356 /* MFSNavigationControllerTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MFSNavigationControllerTests.m; sourceTree = "<group>"; };
-		A994F9CA1B106B77006A2356 /* MFSNavigationController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MFSNavigationController.h; sourceTree = "<group>"; };
-		A994F9CB1B106B77006A2356 /* MFSNavigationController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MFSNavigationController.m; sourceTree = "<group>"; };
 		A994F9CE1B106BB2006A2356 /* AViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AViewController.h; sourceTree = "<group>"; };
 		A994F9CF1B106BB2006A2356 /* AViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AViewController.m; sourceTree = "<group>"; };
 		A994F9D01B106BB2006A2356 /* BViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BViewController.h; sourceTree = "<group>"; };
@@ -56,8 +53,8 @@
 		A994F9D31B106BB2006A2356 /* CViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CViewController.m; sourceTree = "<group>"; };
 		A994F9D41B106BB2006A2356 /* DViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DViewController.h; sourceTree = "<group>"; };
 		A994F9D51B106BB2006A2356 /* DViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DViewController.m; sourceTree = "<group>"; };
-		A9D800431B1EFB26008E262D /* UINavigationController+MFSPopOut.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "UINavigationController+MFSPopOut.h"; sourceTree = "<group>"; };
-		A9D800441B1EFB26008E262D /* UINavigationController+MFSPopOut.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "UINavigationController+MFSPopOut.m"; sourceTree = "<group>"; };
+		A9F3D4AB1D6AA17F003D9586 /* UINavigationController+HookPop.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "UINavigationController+HookPop.h"; sourceTree = "<group>"; };
+		A9F3D4AC1D6AA17F003D9586 /* UINavigationController+HookPop.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "UINavigationController+HookPop.m"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,9 +96,8 @@
 		A994F9A21B106B50006A2356 /* MFSNavigationController */ = {
 			isa = PBXGroup;
 			children = (
+				A9F3D4AA1D6AA17F003D9586 /* UINavigationController+HookPop */,
 				A994F9CD1B106B9D006A2356 /* ViewControllers */,
-				A994F9C91B106B77006A2356 /* MFSNavigationController */,
-				A9D800421B1EFB26008E262D /* UINavigationController+MFSPopOut */,
 				A994F9A71B106B50006A2356 /* AppDelegate.h */,
 				A994F9A81B106B50006A2356 /* AppDelegate.m */,
 				A994F9AA1B106B50006A2356 /* ViewController.h */,
@@ -140,15 +136,6 @@
 			name = "Supporting Files";
 			sourceTree = "<group>";
 		};
-		A994F9C91B106B77006A2356 /* MFSNavigationController */ = {
-			isa = PBXGroup;
-			children = (
-				A994F9CA1B106B77006A2356 /* MFSNavigationController.h */,
-				A994F9CB1B106B77006A2356 /* MFSNavigationController.m */,
-			);
-			path = MFSNavigationController;
-			sourceTree = "<group>";
-		};
 		A994F9CD1B106B9D006A2356 /* ViewControllers */ = {
 			isa = PBXGroup;
 			children = (
@@ -164,13 +151,13 @@
 			name = ViewControllers;
 			sourceTree = "<group>";
 		};
-		A9D800421B1EFB26008E262D /* UINavigationController+MFSPopOut */ = {
+		A9F3D4AA1D6AA17F003D9586 /* UINavigationController+HookPop */ = {
 			isa = PBXGroup;
 			children = (
-				A9D800431B1EFB26008E262D /* UINavigationController+MFSPopOut.h */,
-				A9D800441B1EFB26008E262D /* UINavigationController+MFSPopOut.m */,
+				A9F3D4AB1D6AA17F003D9586 /* UINavigationController+HookPop.h */,
+				A9F3D4AC1D6AA17F003D9586 /* UINavigationController+HookPop.m */,
 			);
-			path = "UINavigationController+MFSPopOut";
+			path = "UINavigationController+HookPop";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -274,11 +261,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				A994F9AC1B106B50006A2356 /* ViewController.m in Sources */,
+				A9F3D4AD1D6AA17F003D9586 /* UINavigationController+HookPop.m in Sources */,
 				A994F9D71B106BB2006A2356 /* BViewController.m in Sources */,
-				A9D800451B1EFB26008E262D /* UINavigationController+MFSPopOut.m in Sources */,
 				A994F9D61B106BB2006A2356 /* AViewController.m in Sources */,
 				A994F9A91B106B50006A2356 /* AppDelegate.m in Sources */,
-				A994F9CC1B106B77006A2356 /* MFSNavigationController.m in Sources */,
 				A994F9A61B106B50006A2356 /* main.m in Sources */,
 				A994F9D81B106BB2006A2356 /* CViewController.m in Sources */,
 				A994F9D91B106BB2006A2356 /* DViewController.m in Sources */,

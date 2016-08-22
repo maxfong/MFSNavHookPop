@@ -1,12 +1,12 @@
 //
-//  UINavigationController+MFSPopOut.m
+//  UINavigationController+HookPop.m
 //  MFSNavigationController
 //
 //  Created by maxfong on 15/5/23.
 //
 //  https://github.com/maxfong/MFSNavigationController
 
-#import "UINavigationController+MFSPopOut.h"
+#import "UINavigationController+HookPop.h"
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 
@@ -70,7 +70,7 @@
 
 @end
 
-@implementation UINavigationController (MFSPopOut)
+@implementation UINavigationController (MFSHookPop)
 
 + (void)load {
     static dispatch_once_t onceToken;

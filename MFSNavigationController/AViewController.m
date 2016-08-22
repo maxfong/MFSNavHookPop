@@ -14,7 +14,7 @@
 
 @implementation AViewController
 
-- (BOOL)shouldPopOut {
+- (BOOL)shouldPopActionSkipController {
     return YES;
 }
 
