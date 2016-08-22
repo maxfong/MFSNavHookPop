@@ -37,7 +37,7 @@
 
 /** 拦截Pop操作并自定义一些操作，如弹出Alert提示是否返回
  */
-- (BOOL)shouldHookPopAction;
+- (BOOL)shouldHookPopAndAction;
 
 @end
 
