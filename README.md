@@ -46,10 +46,6 @@ pop时，跳过未加入堆栈的ViewController；
  */
 @property (nonatomic, assign) BOOL wantsPopLast;
 
-/** 添加白名单内的View将不再支持触摸滑动返回，参数是类名字符串
- */
-~~- (void)addDisableDragBackWhiteList:(NSArray<NSString *> *)clsNames;~~
-
 @end
 
 @protocol MFSPopActionProtocol <NSObject>
