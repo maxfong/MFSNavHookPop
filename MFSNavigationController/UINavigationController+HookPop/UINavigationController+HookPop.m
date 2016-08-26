@@ -296,12 +296,7 @@
                 if ([self.popFromViewController respondsToSelector:@selector(popActionDidFinish)]) {
                     [self.popFromViewController popActionDidFinish];
                 }
-                NSArray<__kindof UIViewController *> *childViewControllers = self.popFromViewController.childViewControllers;
-                [childViewControllers enumerateObjectsUsingBlock:^(__kindof UIViewController * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-                    if ([obj respondsToSelector:@selector(popActionDidFinish)]) {
-                        [obj popActionDidFinish];
-                    }
-                }];
+                [self recursionPopFinishFromViewController:self.popFromViewController];
                 [self.popOutControllers removeObject:self.popFromViewController];
                 [self.interactivePopTransition finishInteractiveTransition];
                 self.interactivePopTransition = nil;
@@ -311,6 +306,16 @@
         [self.interactivePopTransition cancelInteractiveTransition];
         self.interactivePopTransition = nil;
     }
+}
+
+- (void)recursionPopFinishFromViewController:(UIViewController *)controller {
+    NSArray<__kindof UIViewController *> *childViewControllers = controller.childViewControllers;
+    [childViewControllers enumerateObjectsUsingBlock:^(__kindof UIViewController * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+        if ([obj respondsToSelector:@selector(popActionDidFinish)]) {
+            [obj popActionDidFinish];
+        }
+        [self recursionPopFinishFromViewController:obj];
+    }];
 }
 
 @end
