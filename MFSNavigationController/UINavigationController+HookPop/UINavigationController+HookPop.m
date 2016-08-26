@@ -21,7 +21,7 @@
 + (void)mfs_swizzleSelector:(SEL)originalSelector newSelector:(SEL)newSelector {
     Method originalMethod = class_getInstanceMethod(self, originalSelector);
     Method newMethod = class_getInstanceMethod(self, newSelector);
-    
+    disableDragBackWhiteList
     BOOL methodAdded = class_addMethod([self class], originalSelector, method_getImplementation(newMethod), method_getTypeEncoding(newMethod));
     if (methodAdded) {
         class_replaceMethod([self class], newSelector, method_getImplementation(originalMethod), method_getTypeEncoding(originalMethod));
@@ -249,15 +249,6 @@
 - (BOOL)wantsPopLast {
     NSNumber *wantsPopLast = objc_getAssociatedObject(self, _cmd);
     return wantsPopLast.boolValue;
-}
-
-- (void)setDisableDragBackWhiteList:(NSMutableArray *)disableDragBackWhiteList {
-    objc_setAssociatedObject(self, @selector(disableDragBackWhiteList), disableDragBackWhiteList, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-- (NSMutableArray *)disableDragBackWhiteList {
-    return objc_getAssociatedObject(self, _cmd) ?: ({
-        self.disableDragBackWhiteList = NSMutableArray.new;
-    });
 }
 
 - (void)setInteractivePopTransition:(UIPercentDrivenInteractiveTransition *)interactivePopTransition {
