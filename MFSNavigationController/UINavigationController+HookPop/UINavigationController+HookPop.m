@@ -203,7 +203,7 @@
         self.viewControllers = self.popOutControllers;
     }
     UIViewController *poppedController = [self mfs_popViewControllerAnimated:animated];
-    [self.popOutControllers removeObject:poppedController];
+    if (!self.interactivePopTransition) [self.popOutControllers removeObject:poppedController];
     return poppedController;
 }
 
@@ -299,12 +299,19 @@
         if (progress > 0.5) {
             BOOL hookPop = NO;
             if ([self.popFromViewController respondsToSelector:@selector(shouldHookPopAndAction)]) {
-                hookPop = [self.popFromViewController performSelector:@selector(shouldHookPopAndAction)];
+                hookPop = [self.popFromViewController shouldHookPopAndAction];
             }
             if (!hookPop) {
                 if ([self.popFromViewController respondsToSelector:@selector(popActionDidFinish)]) {
-                    [self.popFromViewController performSelector:@selector(popActionDidFinish)];
+                    [self.popFromViewController popActionDidFinish];
                 }
+                NSArray<__kindof UIViewController *> *childViewControllers = self.popFromViewController.childViewControllers;
+                [childViewControllers enumerateObjectsUsingBlock:^(__kindof UIViewController * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+                    if ([obj respondsToSelector:@selector(popActionDidFinish)]) {
+                        [obj popActionDidFinish];
+                    }
+                }];
+                [self.popOutControllers removeObject:self.popFromViewController];
                 [self.interactivePopTransition finishInteractiveTransition];
                 self.interactivePopTransition = nil;
                 return;

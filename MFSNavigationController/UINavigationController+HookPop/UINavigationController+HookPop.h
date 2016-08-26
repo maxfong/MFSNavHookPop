@@ -24,14 +24,17 @@
 /** 当前Controller是否需要加入Nav堆栈，默认NO
     设定YES后，返回（pop）会略过Controller
     提示：rootViewController不能被移除
+    不支持childViewController拦截
  */
 - (BOOL)shouldPopActionSkipController;
 
 /** Pop操作完成后会执行，做一些清理操作
+    支持childViewController调用
  */
 - (void)popActionDidFinish;
 
 /** 拦截Pop操作并自定义一些操作，如弹出Alert提示是否返回
+    不支持childViewController调用
  */
 - (BOOL)shouldHookPopAndAction;
 
