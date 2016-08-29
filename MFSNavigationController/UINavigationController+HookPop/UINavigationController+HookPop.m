@@ -10,18 +10,18 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 
-@interface NSObject (Swizzle)
+@interface NSObject (MFSHookPopSwizzle)
 
 + (void)mfs_swizzleSelector:(SEL)originalSelector newSelector:(SEL)newSelector;
 
 @end
 
-@implementation NSObject (Swizzle)
+@implementation NSObject (MFSHookPopSwizzle)
 
 + (void)mfs_swizzleSelector:(SEL)originalSelector newSelector:(SEL)newSelector {
     Method originalMethod = class_getInstanceMethod(self, originalSelector);
     Method newMethod = class_getInstanceMethod(self, newSelector);
-    disableDragBackWhiteList
+    
     BOOL methodAdded = class_addMethod([self class], originalSelector, method_getImplementation(newMethod), method_getTypeEncoding(newMethod));
     if (methodAdded) {
         class_replaceMethod([self class], newSelector, method_getImplementation(originalMethod), method_getTypeEncoding(originalMethod));
@@ -214,13 +214,25 @@
 
 - (NSArray *)mfs_popToViewController:(UIViewController *)viewController animated:(BOOL)animated {
     NSArray *poppedControllers = [self mfs_popToViewController:viewController animated:animated];
+    [poppedControllers enumerateObjectsUsingBlock:^(UIViewController * obj, NSUInteger idx, BOOL * stop) {
+        if ([obj respondsToSelector:@selector(popActionDidFinish)]) {
+            [obj popActionDidFinish];
+        }
+    }];
     [self.popOutControllers removeObjectsInArray:poppedControllers];
     return poppedControllers;
 }
 
 - (NSArray *)mfs_popToRootViewControllerAnimated:(BOOL)animated {
-    NSUInteger removeControllerCount = self.popOutControllers.count - 1;
-    [self.popOutControllers removeObjectsInRange:NSMakeRange(1, removeControllerCount)];
+    NSMutableIndexSet *indexSets = [[NSMutableIndexSet alloc] init];
+    for (int i = 1; i < self.popOutControllers.count; i++) {
+        [indexSets addIndex:i];
+        UIViewController *controller = self.popOutControllers[i];
+        if ([controller respondsToSelector:@selector(popActionDidFinish)]) {
+            [controller popActionDidFinish];
+        }
+    }
+    [self.popOutControllers removeObjectsAtIndexes:indexSets];
     return [self mfs_popToRootViewControllerAnimated:animated];
 }
 
@@ -256,6 +268,15 @@
     return wantsPopLast.boolValue;
 }
 
+- (void)setDisableDragBackWhiteList:(NSMutableArray *)disableDragBackWhiteList {
+    objc_setAssociatedObject(self, @selector(disableDragBackWhiteList), disableDragBackWhiteList, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+- (NSMutableArray *)disableDragBackWhiteList {
+    return objc_getAssociatedObject(self, _cmd) ?: ({
+        self.disableDragBackWhiteList = NSMutableArray.new;
+    });
+}
+
 - (void)setInteractivePopTransition:(UIPercentDrivenInteractiveTransition *)interactivePopTransition {
     objc_setAssociatedObject(self, @selector(interactivePopTransition), interactivePopTransition, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
@@ -283,33 +304,36 @@
     return popRecognizer;
 }
 - (void)handleControllerPop:(UIPanGestureRecognizer *)recognizer {
-    CGFloat progress = MIN(1.0, MAX(0.0, [recognizer translationInView:recognizer.view].x / recognizer.view.bounds.size.width));
-    if (recognizer.state == UIGestureRecognizerStateBegan) {
-        self.interactivePopTransition = [[UIPercentDrivenInteractiveTransition alloc] init];
-        [self popViewControllerAnimated:YES];
-    }
-    else if (recognizer.state == UIGestureRecognizerStateChanged) {
-        [self.interactivePopTransition updateInteractiveTransition:progress];
-    }
-    else if (recognizer.state == UIGestureRecognizerStateEnded || recognizer.state == UIGestureRecognizerStateCancelled) {
-        if (progress > 0.5) {
-            BOOL hookPop = NO;
-            if ([self.popFromViewController respondsToSelector:@selector(shouldHookPopAndAction)]) {
-                hookPop = [self.popFromViewController shouldHookPopAndAction];
-            }
-            if (!hookPop) {
-                if ([self.popFromViewController respondsToSelector:@selector(popActionDidFinish)]) {
-                    [self.popFromViewController popActionDidFinish];
-                }
-                [self recursionPopFinishFromViewController:self.popFromViewController];
-                [self.popOutControllers removeObject:self.popFromViewController];
-                [self.interactivePopTransition finishInteractiveTransition];
-                self.interactivePopTransition = nil;
-                return;
-            }
+    CGPoint velocity = [recognizer velocityInView:recognizer.view];
+    if(velocity.x > 0 || self.interactivePopTransition) {
+        CGFloat progress = MIN(1.0, MAX(0.0, [recognizer translationInView:recognizer.view].x / recognizer.view.bounds.size.width));
+        if (recognizer.state == UIGestureRecognizerStateBegan) {
+            self.interactivePopTransition = [[UIPercentDrivenInteractiveTransition alloc] init];
+            [self popViewControllerAnimated:YES];
         }
-        [self.interactivePopTransition cancelInteractiveTransition];
-        self.interactivePopTransition = nil;
+        else if (recognizer.state == UIGestureRecognizerStateChanged) {
+            [self.interactivePopTransition updateInteractiveTransition:progress];
+        }
+        else if (recognizer.state == UIGestureRecognizerStateEnded || recognizer.state == UIGestureRecognizerStateCancelled) {
+            if (progress > 0.5) {
+                BOOL hookPop = NO;
+                if ([self.popFromViewController respondsToSelector:@selector(shouldHookDragPopAndAction)]) {
+                    hookPop = [self.popFromViewController shouldHookDragPopAndAction];
+                }
+                if (!hookPop) {
+                    if ([self.popFromViewController respondsToSelector:@selector(popActionDidFinish)]) {
+                        [self.popFromViewController popActionDidFinish];
+                    }
+                    [self recursionPopFinishFromViewController:self.popFromViewController];
+                    [self.popOutControllers removeObject:self.popFromViewController];
+                    [self.interactivePopTransition finishInteractiveTransition];
+                    self.interactivePopTransition = nil;
+                    return;
+                }
+            }
+            [self.interactivePopTransition cancelInteractiveTransition];
+            self.interactivePopTransition = nil;
+        }
     }
 }
 
