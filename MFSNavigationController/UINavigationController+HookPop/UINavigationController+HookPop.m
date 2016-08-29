@@ -203,7 +203,12 @@
         self.viewControllers = self.popOutControllers;
     }
     UIViewController *poppedController = [self mfs_popViewControllerAnimated:animated];
-    if (!self.interactivePopTransition) [self.popOutControllers removeObject:poppedController];
+    if (!self.interactivePopTransition) {
+        if ([poppedController respondsToSelector:@selector(popActionDidFinish)]) {
+            [poppedController popActionDidFinish];
+        }
+        [self.popOutControllers removeObject:poppedController];
+    }
     return poppedController;
 }
 
