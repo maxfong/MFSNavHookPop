@@ -51,19 +51,24 @@ pop时，跳过未加入堆栈的ViewController；
 @protocol MFSPopActionProtocol <NSObject>
 
 @optional
-/** 当前Controller是否需要加入Nav堆栈，默认NO
-    设定YES后，返回（pop）会略过Controller
-    提示：rootViewController不能被移除
+/** 当前Controller是否需要加入navigationController堆栈，默认NO
+ 设定YES后，返回和滑动返回（POP）会略过Controller
+ 提示：rootViewController不能被移除
+ 不支持childViewController拦截
  */
 - (BOOL)shouldPopActionSkipController;
 
-/** Pop操作完成后会执行，做一些清理操作
+/** 页面执行POP操作后会被调用，可以做一些清理
+ 不支持方法内使用navigationController执行PUSH、POP等页面切换操作
+ 支持childViewController调用
  */
 - (void)popActionDidFinish;
 
-/** 拦截Pop操作并自定义一些操作，如弹出Alert提示是否返回
+/** 只拦截滑动返回POP操作并可自定义执行内容，如弹出Alert提示是否返回
+ 不支持方法内使用navigationController执行PUSH、POP等页面切换操作
+ 不支持childViewController拦截
  */
-- (BOOL)shouldHookPopAction;
+- (BOOL)shouldHookDragPopAndAction;
 
 @end
 
