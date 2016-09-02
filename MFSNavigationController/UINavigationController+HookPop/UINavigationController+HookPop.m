@@ -41,15 +41,24 @@
     return 0.25;
 }
 - (void)animateTransition:(id<UIViewControllerContextTransitioning>)transitionContext {
-    UIViewController *fromViewController = [transitionContext viewControllerForKey:UITransitionContextFromViewControllerKey];
-    UIViewController *toViewController = [transitionContext viewControllerForKey:UITransitionContextToViewControllerKey];
-    UIView *containerView = [transitionContext containerView];
-    [containerView insertSubview:toViewController.view belowSubview:fromViewController.view];
+    UIView *fromView = [transitionContext viewControllerForKey:UITransitionContextFromViewControllerKey].view;
+    UIView *toView = [transitionContext viewControllerForKey:UITransitionContextToViewControllerKey].view;
+    [[transitionContext containerView] insertSubview:toView belowSubview:fromView];
     
-    NSTimeInterval duration = [self transitionDuration:transitionContext];
-    [UIView animateWithDuration:duration animations:^{
-        fromViewController.view.transform = CGAffineTransformMakeTranslation([UIScreen mainScreen].bounds.size.width, 0);
+    CGFloat toTransition = CGRectGetWidth([transitionContext containerView].bounds);
+    CGFloat fromTranstion = toTransition * 0.4;
+    toView.transform = CGAffineTransformMakeTranslation(-1 * fromTranstion, 0);
+    UIColor *superColor = toView.superview.backgroundColor;
+    toView.superview.backgroundColor = [UIColor whiteColor];
+    fromView.transform = CGAffineTransformIdentity;
+    [UIView animateWithDuration:[self transitionDuration:transitionContext]
+                     animations:^{
+        toView.transform = CGAffineTransformIdentity;
+        fromView.transform = CGAffineTransformMakeTranslation(toTransition, 0);
     } completion:^(BOOL finished) {
+        fromView.transform = CGAffineTransformIdentity;
+        toView.transform = CGAffineTransformIdentity;
+        toView.superview.backgroundColor = superColor;
         [transitionContext completeTransition:!transitionContext.transitionWasCancelled];
     }];
 }
