@@ -10,13 +10,13 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 
-@interface NSObject (MFSHookPopSwizzle)
+@interface NSObject (Swizzle)
 
 + (void)mfs_swizzleSelector:(SEL)originalSelector newSelector:(SEL)newSelector;
 
 @end
 
-@implementation NSObject (MFSHookPopSwizzle)
+@implementation NSObject (Swizzle)
 
 + (void)mfs_swizzleSelector:(SEL)originalSelector newSelector:(SEL)newSelector {
     Method originalMethod = class_getInstanceMethod(self, originalSelector);
@@ -33,48 +33,16 @@
 
 @end
 
-@interface MFSPopAnimation : NSObject <UIViewControllerAnimatedTransitioning> @end
-
-@implementation MFSPopAnimation
-
-- (NSTimeInterval)transitionDuration:(id <UIViewControllerContextTransitioning>)transitionContext {
-    return 0.25;
-}
-- (void)animateTransition:(id<UIViewControllerContextTransitioning>)transitionContext {
-    UIView *fromView = [transitionContext viewControllerForKey:UITransitionContextFromViewControllerKey].view;
-    UIView *toView = [transitionContext viewControllerForKey:UITransitionContextToViewControllerKey].view;
-    [[transitionContext containerView] insertSubview:toView belowSubview:fromView];
-    
-    CGFloat toTransition = CGRectGetWidth([transitionContext containerView].bounds);
-    CGFloat fromTranstion = toTransition * 0.4;
-    toView.transform = CGAffineTransformMakeTranslation(-1 * fromTranstion, 0);
-    UIColor *superColor = toView.superview.backgroundColor;
-    toView.superview.backgroundColor = [UIColor whiteColor];
-    fromView.transform = CGAffineTransformIdentity;
-    [UIView animateWithDuration:[self transitionDuration:transitionContext]
-                     animations:^{
-        toView.transform = CGAffineTransformIdentity;
-        fromView.transform = CGAffineTransformMakeTranslation(toTransition, 0);
-    } completion:^(BOOL finished) {
-        fromView.transform = CGAffineTransformIdentity;
-        toView.transform = CGAffineTransformIdentity;
-        toView.superview.backgroundColor = superColor;
-        [transitionContext completeTransition:!transitionContext.transitionWasCancelled];
-    }];
-}
-
-@end
-
 @interface UINavigationController () <UINavigationControllerDelegate, UIGestureRecognizerDelegate>
 
-@property (nonatomic, strong) NSMutableArray *popOutControllers;
+@property (nonatomic, strong) NSMutableArray<UIViewController *> *popOutControllers;
 @property (nonatomic, assign, getter=isPopFilter) BOOL popFilter;
 @property (nonatomic, strong) UIViewController *removedPopOutViewController;
 
 //Drag Back callback
-@property (nonatomic, strong) UIPercentDrivenInteractiveTransition *interactivePopTransition;
-@property (nonatomic, weak) UIViewController *popFromViewController;
 @property (nonatomic, strong) UIPanGestureRecognizer *popRecognizer;
+@property (nonatomic, strong) NSMutableDictionary *screenShots;
+@property (nonatomic, strong) UIImageView *dragBackgroundView;
 
 @end
 
@@ -123,9 +91,10 @@
     if ([self respondsToSelector:@selector(interactivePopGestureRecognizer)]) {
         self.interactivePopGestureRecognizer.enabled = NO;
         [self.interactivePopGestureRecognizer.view addGestureRecognizer:self.popRecognizer];
-        if ([self isMemberOfClass:[UINavigationController class]]) {
-            self.delegate = self;
-        }
+        self.interactivePopGestureRecognizer.view.layer.shadowOffset = CGSizeMake(0, 5);
+        self.interactivePopGestureRecognizer.view.layer.shadowOpacity = 0.5;
+        self.interactivePopGestureRecognizer.view.layer.shadowRadius = 5;
+        self.interactivePopGestureRecognizer.view.layer.shadowColor = [UIColor blackColor].CGColor;
     }
 }
 
@@ -136,26 +105,6 @@
         return NO;
     }
     return !disableDragBack;
-}
-
-#pragma mark - UINavigationControllerDelegate
-- (id<UIViewControllerAnimatedTransitioning>)navigationController:(UINavigationController *)navigationController
-                                  animationControllerForOperation:(UINavigationControllerOperation)operation
-                                               fromViewController:(UIViewController *)fromVC
-                                                 toViewController:(UIViewController *)toVC {
-    if (operation == UINavigationControllerOperationPop) {
-        self.popFromViewController = fromVC;
-        return MFSPopAnimation.new;
-    }
-    return nil;
-}
-
-- (id<UIViewControllerInteractiveTransitioning>)navigationController:(UINavigationController *)navigationController
-                         interactionControllerForAnimationController:(id<UIViewControllerAnimatedTransitioning>)animationController {
-    if ([animationController isKindOfClass:[MFSPopAnimation class]]) {
-        return self.interactivePopTransition;
-    }
-    return nil;
 }
 
 #pragma mark - pushViewController
@@ -170,6 +119,11 @@
         self.removedPopOutViewController = lastViewController;
         [self setPopFilter:YES];
     }
+    if (self.viewControllers.count) {
+        NSString *key = self.viewControllers.lastObject.aIdentifier;
+        [self.screenShots setObject:self.capture forKey:key];
+        viewController.hidesBottomBarWhenPushed = YES;
+    }
     if (![self.popOutControllers containsObject:viewController]) {
         [self.popOutControllers addObject:viewController];
     }
@@ -181,50 +135,70 @@
 
 #pragma mark - pop
 - (UIViewController *)mfs_popViewControllerAnimated:(BOOL)animated {
-    if (self.wantsPopLast) {
-        [self setWantsPopLast:!self.wantsPopLast];
-        if (self.removedPopOutViewController) {
-            NSUInteger index = self.popOutControllers.count - 1;
-            [self.popOutControllers insertObject:self.removedPopOutViewController atIndex:index];
-        }
-    }
-    self.removedPopOutViewController = nil;
-    if (self.isPopFilter) {
-        [self setPopFilter:!self.isPopFilter];
-        self.viewControllers = self.popOutControllers;
-    }
+    [self correctPopViewControllers];
     UIViewController *poppedController = [self mfs_popViewControllerAnimated:animated];
-    if (!self.interactivePopTransition) {
-        if ([poppedController respondsToSelector:@selector(popActionDidFinish)]) {
-            [poppedController popActionDidFinish];
+    if ([poppedController respondsToSelector:@selector(popActionDidFinish)]) {
+        [poppedController popActionDidFinish];
+    }
+    [self.popOutControllers removeObject:poppedController];
+    if (self.viewControllers.count <= 1) {
+        [self.screenShots removeAllObjects];
+    }
+    else {
+        NSString *key = self.popOutControllers.lastObject.aIdentifier;
+        [self.screenShots removeObjectForKey:key];
+        //检查内存清理无用占用，随着项目规模可酌情修改
+        if (self.screenShots.count > 20) {
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                NSArray *tmpArray = self.popOutControllers;
+                NSMutableDictionary *tmpDictionary = [NSMutableDictionary dictionary];
+                [tmpArray enumerateObjectsUsingBlock:^(__kindof UIViewController * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+                    tmpDictionary[obj.aIdentifier] = self.screenShots[obj.aIdentifier];
+                }];
+                [self.screenShots removeAllObjects];
+                [self.screenShots addEntriesFromDictionary:tmpDictionary];
+            });
         }
-        [self.popOutControllers removeObject:poppedController];
     }
     return poppedController;
 }
 
 - (NSArray *)mfs_popToViewController:(UIViewController *)viewController animated:(BOOL)animated {
     NSArray *poppedControllers = [self mfs_popToViewController:viewController animated:animated];
-    [poppedControllers enumerateObjectsUsingBlock:^(UIViewController * obj, NSUInteger idx, BOOL * stop) {
-        if ([obj respondsToSelector:@selector(popActionDidFinish)]) {
-            [obj popActionDidFinish];
-        }
-    }];
+    UIViewController *lastViewController = poppedControllers.lastObject;
+    if ([lastViewController respondsToSelector:@selector(popActionDidFinish)]) {
+        [lastViewController popActionDidFinish];
+    }
     [self.popOutControllers removeObjectsInArray:poppedControllers];
     return poppedControllers;
 }
 
 - (NSArray *)mfs_popToRootViewControllerAnimated:(BOOL)animated {
-    NSMutableIndexSet *indexSets = [[NSMutableIndexSet alloc] init];
-    for (int i = 1; i < self.popOutControllers.count; i++) {
-        [indexSets addIndex:i];
-        UIViewController *controller = self.popOutControllers[i];
-        if ([controller respondsToSelector:@selector(popActionDidFinish)]) {
-            [controller popActionDidFinish];
+    NSArray *poppedControllers = [self mfs_popToRootViewControllerAnimated:animated];
+    UIViewController *lastViewController = poppedControllers.lastObject;
+    if ([lastViewController respondsToSelector:@selector(popActionDidFinish)]) {
+        [lastViewController popActionDidFinish];
+    }
+    [self.screenShots removeAllObjects];
+    [self.popOutControllers removeObjectsInRange:NSMakeRange(1, (self.popOutControllers.count - 1))];
+    return poppedControllers;
+}
+
+- (void)correctPopViewControllers {
+    if (self.removedPopOutViewController) {
+        if (self.wantsPopLast) {
+            [self setWantsPopLast:!self.wantsPopLast];
+            if (self.removedPopOutViewController) {
+                NSUInteger index = self.popOutControllers.count - 1;
+                [self.popOutControllers insertObject:self.removedPopOutViewController atIndex:index];
+            }
+        }
+        self.removedPopOutViewController = nil;
+        if (self.isPopFilter) {
+            [self setPopFilter:!self.isPopFilter];
+            self.viewControllers = self.popOutControllers;
         }
     }
-    [self.popOutControllers removeObjectsAtIndexes:indexSets];
-    return [self mfs_popToRootViewControllerAnimated:animated];
 }
 
 #pragma mark - AssociatedObject
@@ -259,71 +233,55 @@
     return wantsPopLast.boolValue;
 }
 
-- (void)setDisableDragBackWhiteList:(NSMutableArray *)disableDragBackWhiteList {
-    objc_setAssociatedObject(self, @selector(disableDragBackWhiteList), disableDragBackWhiteList, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-- (NSMutableArray *)disableDragBackWhiteList {
-    return objc_getAssociatedObject(self, _cmd) ?: ({
-        self.disableDragBackWhiteList = NSMutableArray.new;
-    });
-}
-
-- (void)setInteractivePopTransition:(UIPercentDrivenInteractiveTransition *)interactivePopTransition {
-    objc_setAssociatedObject(self, @selector(interactivePopTransition), interactivePopTransition, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-- (UIPercentDrivenInteractiveTransition *)interactivePopTransition {
-    return objc_getAssociatedObject(self, _cmd);
-}
-- (void)setPopFromViewController:(UIViewController *)popFromViewController {
-    objc_setAssociatedObject(self, @selector(popFromViewController), popFromViewController, OBJC_ASSOCIATION_ASSIGN);
-}
-- (UIViewController *)popFromViewController {
-    return objc_getAssociatedObject(self, _cmd);
-}
-
+#pragma mark -
 - (void)setPopRecognizer:(UIPanGestureRecognizer *)popRecognizer {
     objc_setAssociatedObject(self, @selector(popRecognizer), popRecognizer, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 - (UIPanGestureRecognizer *)popRecognizer {
     UIPanGestureRecognizer *popRecognizer = objc_getAssociatedObject(self, _cmd) ?: ({
-        UIPanGestureRecognizer *popRecognizer = [[UIPanGestureRecognizer alloc] init];
-        popRecognizer.delegate = self;
-        popRecognizer.maximumNumberOfTouches = 1;
-        [popRecognizer addTarget:self action:@selector(handleControllerPop:)];
+        UIScreenEdgePanGestureRecognizer *popRecognizer = [[UIScreenEdgePanGestureRecognizer alloc] initWithTarget:self action:@selector(handleControllerPop:)];
+        popRecognizer.edges = UIRectEdgeLeft;
         self.popRecognizer = popRecognizer;
     });
     return popRecognizer;
 }
+
 - (void)handleControllerPop:(UIPanGestureRecognizer *)recognizer {
-    CGPoint velocity = [recognizer velocityInView:recognizer.view];
-    if(velocity.x > 0 || self.interactivePopTransition) {
-        CGFloat progress = MIN(1.0, MAX(0.0, [recognizer translationInView:recognizer.view].x / recognizer.view.bounds.size.width));
-        if (recognizer.state == UIGestureRecognizerStateBegan) {
-            self.interactivePopTransition = [[UIPercentDrivenInteractiveTransition alloc] init];
-            [self popViewControllerAnimated:YES];
+    CGPoint touchPoint = [recognizer locationInView:[[UIApplication sharedApplication]keyWindow]];
+    static CGFloat startX = 0;
+    CGFloat offsetX = touchPoint.x - startX;
+    if(recognizer.state == UIGestureRecognizerStateBegan) {
+        [self correctPopViewControllers];
+        [self planScreenDragBack];
+        startX = touchPoint.x;
+    }
+    else if(recognizer.state == UIGestureRecognizerStateChanged) {
+        [self doMoveViewWithX:offsetX];
+    }
+    else if(recognizer.state == UIGestureRecognizerStateEnded || recognizer.state == UIGestureRecognizerStateCancelled) {
+        CGFloat width = [UIScreen mainScreen].bounds.size.width;
+        BOOL hookPop = NO;
+        UIViewController *popFromViewController = self.viewControllers.lastObject;
+        if ([popFromViewController respondsToSelector:@selector(shouldHookDragPopAndAction)]) {
+            hookPop = [popFromViewController shouldHookDragPopAndAction];
         }
-        else if (recognizer.state == UIGestureRecognizerStateChanged) {
-            [self.interactivePopTransition updateInteractiveTransition:progress];
+        if (!hookPop && offsetX > (width/3) && recognizer.state != UIGestureRecognizerStateCancelled) {
+            [UIView animateWithDuration:0.15 animations:^{
+                [self doMoveViewWithX:width];
+            } completion:^(BOOL finished) {
+                [self completionDragBackAnimation];
+                [self recursionPopFinishFromViewController:popFromViewController];
+            }];
         }
-        else if (recognizer.state == UIGestureRecognizerStateEnded || recognizer.state == UIGestureRecognizerStateCancelled) {
-            if (progress > 0.5) {
-                BOOL hookPop = NO;
-                if ([self.popFromViewController respondsToSelector:@selector(shouldHookDragPopAndAction)]) {
-                    hookPop = [self.popFromViewController shouldHookDragPopAndAction];
+        else {
+            [UIView animateWithDuration:0.15 animations:^{
+                [self doMoveViewWithX:0];
+            } completion:^(BOOL finished) {
+                if ([popFromViewController respondsToSelector:@selector(doHookDragPopAction)]) {
+                    [popFromViewController doHookDragPopAction];
                 }
-                if (!hookPop) {
-                    if ([self.popFromViewController respondsToSelector:@selector(popActionDidFinish)]) {
-                        [self.popFromViewController popActionDidFinish];
-                    }
-                    [self recursionPopFinishFromViewController:self.popFromViewController];
-                    [self.popOutControllers removeObject:self.popFromViewController];
-                    [self.interactivePopTransition finishInteractiveTransition];
-                    self.interactivePopTransition = nil;
-                    return;
-                }
-            }
-            [self.interactivePopTransition cancelInteractiveTransition];
-            self.interactivePopTransition = nil;
+                [self.dragBackgroundView removeFromSuperview];
+            }];
         }
     }
 }
@@ -338,6 +296,61 @@
     }];
 }
 
+#pragma mark -
+- (UIImage *)capture {
+    UIGraphicsBeginImageContextWithOptions(self.view.superview.bounds.size, self.view.superview.opaque, 0.0);
+    [self.view.superview.layer renderInContext:UIGraphicsGetCurrentContext()];
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return image;
+}
+
+-(void)doMoveViewWithX:(CGFloat)x{
+    CGFloat height = [UIScreen mainScreen].bounds.size.height;
+    CGFloat width = [UIScreen mainScreen].bounds.size.width;
+    x = x > width ? width : x;
+    x = x < 0 ? 0 : x;
+    CGRect frame = self.view.frame;
+    frame.origin.x = x;
+    self.view.frame = frame;
+    self.dragBackgroundView.frame = CGRectMake(-(width*0.6)+ x*0.6, 0, width, height);
+}
+
+-(void)completionDragBackAnimation {
+    [self popViewControllerAnimated:NO];
+    CGRect frame = self.view.frame;
+    frame.origin.x = 0;
+    self.view.frame = frame;
+    [self.dragBackgroundView removeFromSuperview];
+}
+
+- (void)planScreenDragBack {
+    [self.view.superview insertSubview:self.dragBackgroundView belowSubview:self.view];
+    NSUInteger index = (self.popOutControllers.count - 2) > 0 ? self.popOutControllers.count - 2 : 0;
+    NSString *key = self.popOutControllers[index].aIdentifier;
+    self.dragBackgroundView.image = [self.screenShots objectForKey:key];
+}
+
+- (NSMutableDictionary *)screenShots {
+    return objc_getAssociatedObject(self, _cmd) ?: ({
+        self.screenShots = [NSMutableDictionary dictionary];
+    });
+}
+- (void)setScreenShots:(NSMutableDictionary *)screenShots {
+    objc_setAssociatedObject(self, @selector(screenShots), screenShots, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+- (UIImageView *)dragBackgroundView {
+    return objc_getAssociatedObject(self, _cmd) ?: ({
+        UIImageView *aView = [[UIImageView alloc]initWithFrame:self.view.bounds];
+        aView.backgroundColor = [UIColor blackColor];
+        self.dragBackgroundView = aView;
+    });
+}
+- (void)setDragBackgroundView:(UIView *)dragBackgroundView {
+    objc_setAssociatedObject(self, @selector(dragBackgroundView), dragBackgroundView, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
 @end
 
 @implementation UIViewController (MFSPopAction)
@@ -347,6 +360,15 @@
 }
 - (BOOL)disableDragBack {
     return ((NSNumber *)objc_getAssociatedObject(self, _cmd)).boolValue;
+}
+
+- (NSString *)aIdentifier {
+    return objc_getAssociatedObject(self, _cmd) ?: ({
+        self.aTCIdentifier = [[NSUUID UUID] UUIDString];
+    });
+}
+- (void)setATCIdentifier:(NSString *)aIdentifier {
+    objc_setAssociatedObject(self, @selector(aIdentifier), aIdentifier, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
 @end
