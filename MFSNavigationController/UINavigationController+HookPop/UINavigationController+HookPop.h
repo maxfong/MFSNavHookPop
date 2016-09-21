@@ -5,14 +5,14 @@
 //  Created by maxfong on 15/5/23.
 //
 //  https://github.com/maxfong/MFSNavHookPop
-//  使用此库需iOS7及以上，并会强制修改UINavigationController的delegate和interactivePopGestureRecognizer的值，不允许修改
+//  截图滑动返回（需iOS7及以上，弃用系统滑动返回是避免引起Bar堆栈冲突）及Nav堆栈过滤设定的页面
 
 #import <UIKit/UIKit.h>
 
 @interface UINavigationController (MFSHookPop)
 
 /** 强制返回上一个页面，哪怕上一个页面设定shouldPopActionSkipController为YES
-    每次push会增加且只是一次的强制返回机会
+ 每次push会增加且只是一次的强制返回机会
  */
 @property (nonatomic, assign) BOOL wantsPopLast;
 
@@ -40,6 +40,12 @@
  */
 - (BOOL)shouldHookDragPopAndAction;
 
+/** 拦截滑动返回POP操作后做一些页面切换操作，-shouldHookDragPopAndAction返回YES才会被调用
+ 支持方法内使用navigationController执行PUSH、POPTo等页面切换操作
+ 不支持childViewController拦截
+ */
+- (void)doHookDragPopAction;
+
 @end
 
 @interface UIViewController (MFSPopAction) <MFSPopActionProtocol>
@@ -47,6 +53,10 @@
 /** 关闭当前viewController滑动返回
  */
 @property (nonatomic, assign) BOOL disableDragBack;
+
+/** viewController标识符，生成后唯一且不可改变
+ */
+@property (nonatomic, strong, readonly) NSString *aIdentifier;
 
 @end
 
