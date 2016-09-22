@@ -7,6 +7,8 @@
 //
 
 #import "CViewController.h"
+#import "UINavigationController+HookPop.h"
+#import "DViewController.h"
 
 @interface CViewController ()
 
@@ -15,7 +17,20 @@
 @implementation CViewController
 
 - (BOOL)shouldPopActionSkipController {
+    return NO;
+}
+
+- (BOOL)shouldHookDragPopAndActionBlock:(void (^)(void (^)(NSDictionary *)))block {
+    block(^(NSDictionary *options) {
+        DViewController *viewController = DViewController.new;
+        viewController.view.backgroundColor = [UIColor redColor];
+        [self.navigationController pushViewController:viewController animated:YES];
+    });
     return YES;
+}
+
+- (void)popActionDidFinish {
+    NSLog(@"C pop finish");
 }
 
 - (void)viewDidLoad {
