@@ -35,16 +35,11 @@
 - (void)popActionDidFinish;
 
 /** 只拦截滑动返回POP操作并可自定义执行内容，如弹出Alert提示是否返回
- 不支持方法内使用navigationController执行PUSH、POP等页面切换操作
+ 支持方法内使用navigationController执行PUSH、POP等页面切换操作
+ block内可传self
  不支持childViewController拦截
  */
-- (BOOL)shouldHookDragPopAndAction;
-
-/** 拦截滑动返回POP操作后做一些页面切换操作，-shouldHookDragPopAndAction返回YES才会被调用
- 支持方法内使用navigationController执行PUSH、POPTo等页面切换操作
- 不支持childViewController拦截
- */
-- (void)doHookDragPopAction;
+- (BOOL)shouldHookDragPopAndActionBlock:(void(^)(void (^)(NSDictionary *options)))block;
 
 @end
 
@@ -59,4 +54,3 @@
 @property (nonatomic, strong, readonly) NSString *aIdentifier;
 
 @end
-
