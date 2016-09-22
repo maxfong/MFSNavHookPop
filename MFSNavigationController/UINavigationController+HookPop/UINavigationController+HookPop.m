@@ -40,7 +40,6 @@
 @property (nonatomic, strong) UIViewController *removedPopOutViewController;
 
 //Drag Back callback
-@property (nonatomic, strong) UIPanGestureRecognizer *popRecognizer;
 @property (nonatomic, strong) NSMutableDictionary *screenShots;
 @property (nonatomic, strong) UIImageView *dragBackgroundView;
 
@@ -90,7 +89,11 @@
     }
     if ([self respondsToSelector:@selector(interactivePopGestureRecognizer)]) {
         self.interactivePopGestureRecognizer.enabled = NO;
-        [self.interactivePopGestureRecognizer.view addGestureRecognizer:self.popRecognizer];
+        [self.interactivePopGestureRecognizer.view addGestureRecognizer:({
+            UIScreenEdgePanGestureRecognizer *popRecognizer = [[UIScreenEdgePanGestureRecognizer alloc] initWithTarget:self action:@selector(handleControllerPop:)];
+            popRecognizer.edges = UIRectEdgeLeft;
+            popRecognizer;
+        })];
         self.interactivePopGestureRecognizer.view.layer.shadowOffset = CGSizeMake(0, 5);
         self.interactivePopGestureRecognizer.view.layer.shadowOpacity = 0.5;
         self.interactivePopGestureRecognizer.view.layer.shadowRadius = 5;
@@ -234,18 +237,6 @@
 }
 
 #pragma mark -
-- (void)setPopRecognizer:(UIPanGestureRecognizer *)popRecognizer {
-    objc_setAssociatedObject(self, @selector(popRecognizer), popRecognizer, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-- (UIPanGestureRecognizer *)popRecognizer {
-    UIPanGestureRecognizer *popRecognizer = objc_getAssociatedObject(self, _cmd) ?: ({
-        UIScreenEdgePanGestureRecognizer *popRecognizer = [[UIScreenEdgePanGestureRecognizer alloc] initWithTarget:self action:@selector(handleControllerPop:)];
-        popRecognizer.edges = UIRectEdgeLeft;
-        self.popRecognizer = popRecognizer;
-    });
-    return popRecognizer;
-}
-
 - (void)handleControllerPop:(UIPanGestureRecognizer *)recognizer {
     CGPoint touchPoint = [recognizer locationInView:[[UIApplication sharedApplication]keyWindow]];
     static CGFloat startX = 0;
@@ -262,8 +253,11 @@
         CGFloat width = [UIScreen mainScreen].bounds.size.width;
         BOOL hookPop = NO;
         UIViewController *popFromViewController = self.viewControllers.lastObject;
-        if ([popFromViewController respondsToSelector:@selector(shouldHookDragPopAndAction)]) {
-            hookPop = [popFromViewController shouldHookDragPopAndAction];
+        __block void (^actionBlock)(NSDictionary *options) = nil;
+        if ([popFromViewController respondsToSelector:@selector(shouldHookDragPopAndActionBlock:)]) {
+            hookPop = [popFromViewController shouldHookDragPopAndActionBlock:^(void (^block)(NSDictionary *options)) {
+                actionBlock = block;
+            }];
         }
         if (!hookPop && offsetX > (width/3) && recognizer.state != UIGestureRecognizerStateCancelled) {
             [UIView animateWithDuration:0.15 animations:^{
@@ -277,9 +271,7 @@
             [UIView animateWithDuration:0.15 animations:^{
                 [self doMoveViewWithX:0];
             } completion:^(BOOL finished) {
-                if ([popFromViewController respondsToSelector:@selector(doHookDragPopAction)]) {
-                    [popFromViewController doHookDragPopAction];
-                }
+                if (actionBlock) { actionBlock(nil); }
                 [self.dragBackgroundView removeFromSuperview];
             }];
         }
