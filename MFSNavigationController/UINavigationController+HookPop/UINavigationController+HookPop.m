@@ -38,8 +38,6 @@
 @property (nonatomic, strong) NSMutableArray<UIViewController *> *popOutControllers;
 @property (nonatomic, assign, getter=isPopFilter) BOOL popFilter;
 @property (nonatomic, strong) UIViewController *removedPopOutViewController;
-
-//Drag Back callback
 @property (nonatomic, strong) NSMutableDictionary *screenShots;
 @property (nonatomic, strong) UIImageView *dragBackgroundView;
 
@@ -51,42 +49,51 @@
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         SEL iwrvc = @selector(initWithRootViewController:);
-        SEL mfs_iwrvc = @selector(mfs_initWithRootViewController:);
+        SEL mfs_iwrvc = @selector(mfshp_initWithRootViewController:);
         [self mfs_swizzleSelector:iwrvc newSelector:mfs_iwrvc];
         
         SEL vdl = @selector(viewDidLoad);
-        SEL mfs_vdl = @selector(mfs_viewDidLoad);
+        SEL mfs_vdl = @selector(mfshp_viewDidLoad);
         [self mfs_swizzleSelector:vdl newSelector:mfs_vdl];
         
         SEL pvca = @selector(pushViewController:animated:);
-        SEL mfs_pvca = @selector(mfs_pushViewController:animated:);
+        SEL mfs_pvca = @selector(mfshp_pushViewController:animated:);
         [self mfs_swizzleSelector:pvca newSelector:mfs_pvca];
         
         SEL povca = @selector(popViewControllerAnimated:);
-        SEL mfs_povca = @selector(mfs_popViewControllerAnimated:);
+        SEL mfs_povca = @selector(mfshp_popViewControllerAnimated:);
         [self mfs_swizzleSelector:povca newSelector:mfs_povca];
         
         SEL ptvca = @selector(popToViewController:animated:);
-        SEL mfs_ptvca = @selector(mfs_popToViewController:animated:);
+        SEL mfs_ptvca = @selector(mfshp_popToViewController:animated:);
         [self mfs_swizzleSelector:ptvca newSelector:mfs_ptvca];
         
         SEL ptrvca = @selector(popToRootViewControllerAnimated:);
-        SEL mfs_ptrvca = @selector(mfs_popToRootViewControllerAnimated:);
+        SEL mfs_ptrvca = @selector(mfshp_popToRootViewControllerAnimated:);
         [self mfs_swizzleSelector:ptrvca newSelector:mfs_ptrvca];
+        
+        SEL svc = @selector(setViewControllers:);
+        SEL mfs_svc = @selector(mfshp_setViewControllers:);
+        [self mfs_swizzleSelector:svc newSelector:mfs_svc];
+        
+        SEL svca = @selector(setViewControllers:animated:);
+        SEL mfs_svca = @selector(mfshp_setViewControllers:animated:);
+        [self mfs_swizzleSelector:svca newSelector:mfs_svca];
     });
 }
 
-- (instancetype)mfs_initWithRootViewController:(UIViewController *)rootViewController {
+- (instancetype)mfshp_initWithRootViewController:(UIViewController *)rootViewController {
     if (rootViewController) [self.popOutControllers addObject:rootViewController];
-    return [self mfs_initWithRootViewController:rootViewController];
+    return [self mfshp_initWithRootViewController:rootViewController];
 }
 
-- (void)mfs_viewDidLoad {
-    [self mfs_viewDidLoad];
+- (void)mfshp_viewDidLoad {
+    [self mfshp_viewDidLoad];
     UIViewController *rootViewController = self.viewControllers.firstObject;
     if (rootViewController && self.popOutControllers.count == 0) {
         [self.popOutControllers addObject:rootViewController];
     }
+    CALayer  *layer = nil;
     if ([self respondsToSelector:@selector(interactivePopGestureRecognizer)]) {
         self.interactivePopGestureRecognizer.enabled = NO;
         [self.interactivePopGestureRecognizer.view addGestureRecognizer:({
@@ -94,11 +101,20 @@
             popRecognizer.edges = UIRectEdgeLeft;
             popRecognizer;
         })];
-        self.interactivePopGestureRecognizer.view.layer.shadowOffset = CGSizeMake(0, 5);
-        self.interactivePopGestureRecognizer.view.layer.shadowOpacity = 0.5;
-        self.interactivePopGestureRecognizer.view.layer.shadowRadius = 5;
-        self.interactivePopGestureRecognizer.view.layer.shadowColor = [UIColor blackColor].CGColor;
+        layer = self.interactivePopGestureRecognizer.view.layer;
     }
+    else {
+        [self.view addGestureRecognizer:({
+            UIPanGestureRecognizer *popRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleControllerPop:)];
+            popRecognizer.maximumNumberOfTouches = 1;
+            popRecognizer;
+        })];
+        layer = self.view.layer;
+    }
+    layer.shadowColor = [UIColor blackColor].CGColor;
+    layer.shadowOffset = CGSizeMake(0, 5);
+    layer.shadowOpacity = 0.5;
+    layer.shadowRadius = 5;
 }
 
 #pragma mark - UIGestureRecognizerDelegate
@@ -107,11 +123,11 @@
     if (self.viewControllers.count <= 1 || disableDragBack) {
         return NO;
     }
-    return !disableDragBack;
+    return YES;
 }
 
 #pragma mark - pushViewController
-- (void)mfs_pushViewController:(UIViewController *)viewController animated:(BOOL)animated {
+- (void)mfshp_pushViewController:(UIViewController *)viewController animated:(BOOL)animated {
     BOOL popOut = NO;
     UIViewController *lastViewController = self.popOutControllers.lastObject;
     if ([lastViewController respondsToSelector:@selector(shouldPopActionSkipController)]) {
@@ -133,13 +149,13 @@
     if (self.wantsPopLast) {
         [self setWantsPopLast:!self.wantsPopLast];
     }
-    [self mfs_pushViewController:viewController animated:animated];
+    [self mfshp_pushViewController:viewController animated:animated];
 }
 
 #pragma mark - pop
-- (UIViewController *)mfs_popViewControllerAnimated:(BOOL)animated {
+- (UIViewController *)mfshp_popViewControllerAnimated:(BOOL)animated {
     [self correctPopViewControllers];
-    UIViewController *poppedController = [self mfs_popViewControllerAnimated:animated];
+    UIViewController *poppedController = [self mfshp_popViewControllerAnimated:animated];
     if ([poppedController respondsToSelector:@selector(popActionDidFinish)]) {
         [poppedController popActionDidFinish];
     }
@@ -151,23 +167,27 @@
         NSString *key = self.popOutControllers.lastObject.aIdentifier;
         [self.screenShots removeObjectForKey:key];
         //检查内存清理无用占用，随着项目规模可酌情修改
-        if (self.screenShots.count > 20) {
-            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-                NSArray *tmpArray = self.popOutControllers;
-                NSMutableDictionary *tmpDictionary = [NSMutableDictionary dictionary];
-                [tmpArray enumerateObjectsUsingBlock:^(__kindof UIViewController * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-                    tmpDictionary[obj.aIdentifier] = self.screenShots[obj.aIdentifier];
-                }];
-                [self.screenShots removeAllObjects];
-                [self.screenShots addEntriesFromDictionary:tmpDictionary];
-            });
+        @synchronized (self) {
+            static NSUInteger holdID = 0;
+            if (self.screenShots.count > (5 * ++holdID)) {
+                if (holdID > 5) { holdID = 0; }
+                dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                    NSArray *tmpArray = self.popOutControllers;
+                    NSMutableDictionary *tmpDictionary = [NSMutableDictionary dictionary];
+                    [tmpArray enumerateObjectsUsingBlock:^(__kindof UIViewController * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+                        tmpDictionary[obj.aIdentifier] = self.screenShots[obj.aIdentifier];
+                    }];
+                    [self.screenShots removeAllObjects];
+                    [self.screenShots addEntriesFromDictionary:tmpDictionary];
+                });
+            }
         }
     }
     return poppedController;
 }
 
-- (NSArray *)mfs_popToViewController:(UIViewController *)viewController animated:(BOOL)animated {
-    NSArray *poppedControllers = [self mfs_popToViewController:viewController animated:animated];
+- (NSArray *)mfshp_popToViewController:(UIViewController *)viewController animated:(BOOL)animated {
+    NSArray *poppedControllers = [self mfshp_popToViewController:viewController animated:animated];
     UIViewController *lastViewController = poppedControllers.lastObject;
     if ([lastViewController respondsToSelector:@selector(popActionDidFinish)]) {
         [lastViewController popActionDidFinish];
@@ -176,8 +196,8 @@
     return poppedControllers;
 }
 
-- (NSArray *)mfs_popToRootViewControllerAnimated:(BOOL)animated {
-    NSArray *poppedControllers = [self mfs_popToRootViewControllerAnimated:animated];
+- (NSArray *)mfshp_popToRootViewControllerAnimated:(BOOL)animated {
+    NSArray *poppedControllers = [self mfshp_popToRootViewControllerAnimated:animated];
     UIViewController *lastViewController = poppedControllers.lastObject;
     if ([lastViewController respondsToSelector:@selector(popActionDidFinish)]) {
         [lastViewController popActionDidFinish];
@@ -185,6 +205,22 @@
     [self.screenShots removeAllObjects];
     [self.popOutControllers removeObjectsInRange:NSMakeRange(1, (self.popOutControllers.count - 1))];
     return poppedControllers;
+}
+
+- (void)mfshp_setViewControllers:(NSArray<UIViewController *> *)viewControllers animated:(BOOL)animated {
+    [self mfshp_setViewControllers:[self viewControllersWithCorrectSetViewControllers:viewControllers] animated:animated];
+}
+- (void)mfshp_setViewControllers:(NSArray<__kindof UIViewController *> *)viewControllers {
+    [self mfshp_setViewControllers:[self viewControllersWithCorrectSetViewControllers:viewControllers]];
+}
+- (NSArray *)viewControllersWithCorrectSetViewControllers:(NSArray<__kindof UIViewController *> *)viewControllers {
+    NSMutableArray *array = [NSMutableArray arrayWithArray:viewControllers];
+    [viewControllers enumerateObjectsUsingBlock:^(UIViewController * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+        if (![self.popOutControllers containsObject:obj]) { [array removeObject:obj]; }
+    }];
+    self.popOutControllers = array;
+    self.removedPopOutViewController = nil;
+    return array;
 }
 
 - (void)correctPopViewControllers {
@@ -271,7 +307,7 @@
             [UIView animateWithDuration:0.15 animations:^{
                 [self doMoveViewWithX:0];
             } completion:^(BOOL finished) {
-                if (actionBlock) { actionBlock(nil); }
+                if (hookPop && offsetX > (width/3) && actionBlock) { actionBlock(nil); }
                 [self.dragBackgroundView removeFromSuperview];
             }];
         }
