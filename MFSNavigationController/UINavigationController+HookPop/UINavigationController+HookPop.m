@@ -10,15 +10,15 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 
-@interface NSObject (Swizzle)
+@interface NSObject (HookPopSwizzle)
 
-+ (void)mfs_swizzleSelector:(SEL)originalSelector newSelector:(SEL)newSelector;
++ (void)mfshp_swizzleSelector:(SEL)originalSelector newSelector:(SEL)newSelector;
 
 @end
 
-@implementation NSObject (Swizzle)
+@implementation NSObject (HookPopSwizzle)
 
-+ (void)mfs_swizzleSelector:(SEL)originalSelector newSelector:(SEL)newSelector {
++ (void)mfshp_swizzleSelector:(SEL)originalSelector newSelector:(SEL)newSelector {
     Method originalMethod = class_getInstanceMethod(self, originalSelector);
     Method newMethod = class_getInstanceMethod(self, newSelector);
     
@@ -50,35 +50,35 @@
     dispatch_once(&onceToken, ^{
         SEL iwrvc = @selector(initWithRootViewController:);
         SEL mfs_iwrvc = @selector(mfshp_initWithRootViewController:);
-        [self mfs_swizzleSelector:iwrvc newSelector:mfs_iwrvc];
+        [self mfshp_swizzleSelector:iwrvc newSelector:mfs_iwrvc];
         
         SEL vdl = @selector(viewDidLoad);
         SEL mfs_vdl = @selector(mfshp_viewDidLoad);
-        [self mfs_swizzleSelector:vdl newSelector:mfs_vdl];
+        [self mfshp_swizzleSelector:vdl newSelector:mfs_vdl];
         
         SEL pvca = @selector(pushViewController:animated:);
         SEL mfs_pvca = @selector(mfshp_pushViewController:animated:);
-        [self mfs_swizzleSelector:pvca newSelector:mfs_pvca];
+        [self mfshp_swizzleSelector:pvca newSelector:mfs_pvca];
         
         SEL povca = @selector(popViewControllerAnimated:);
         SEL mfs_povca = @selector(mfshp_popViewControllerAnimated:);
-        [self mfs_swizzleSelector:povca newSelector:mfs_povca];
+        [self mfshp_swizzleSelector:povca newSelector:mfs_povca];
         
         SEL ptvca = @selector(popToViewController:animated:);
         SEL mfs_ptvca = @selector(mfshp_popToViewController:animated:);
-        [self mfs_swizzleSelector:ptvca newSelector:mfs_ptvca];
+        [self mfshp_swizzleSelector:ptvca newSelector:mfs_ptvca];
         
         SEL ptrvca = @selector(popToRootViewControllerAnimated:);
         SEL mfs_ptrvca = @selector(mfshp_popToRootViewControllerAnimated:);
-        [self mfs_swizzleSelector:ptrvca newSelector:mfs_ptrvca];
+        [self mfshp_swizzleSelector:ptrvca newSelector:mfs_ptrvca];
         
         SEL svc = @selector(setViewControllers:);
         SEL mfs_svc = @selector(mfshp_setViewControllers:);
-        [self mfs_swizzleSelector:svc newSelector:mfs_svc];
+        [self mfshp_swizzleSelector:svc newSelector:mfs_svc];
         
         SEL svca = @selector(setViewControllers:animated:);
         SEL mfs_svca = @selector(mfshp_setViewControllers:animated:);
-        [self mfs_swizzleSelector:svca newSelector:mfs_svca];
+        [self mfshp_swizzleSelector:svca newSelector:mfs_svca];
     });
 }
 
@@ -99,6 +99,7 @@
         [self.interactivePopGestureRecognizer.view addGestureRecognizer:({
             UIScreenEdgePanGestureRecognizer *popRecognizer = [[UIScreenEdgePanGestureRecognizer alloc] initWithTarget:self action:@selector(handleControllerPop:)];
             popRecognizer.edges = UIRectEdgeLeft;
+            popRecognizer.delegate = self;
             popRecognizer;
         })];
         layer = self.interactivePopGestureRecognizer.view.layer;
@@ -107,6 +108,7 @@
         [self.view addGestureRecognizer:({
             UIPanGestureRecognizer *popRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleControllerPop:)];
             popRecognizer.maximumNumberOfTouches = 1;
+            popRecognizer.delegate = self;
             popRecognizer;
         })];
         layer = self.view.layer;
@@ -215,11 +217,13 @@
 }
 - (NSArray *)viewControllersWithCorrectSetViewControllers:(NSArray<__kindof UIViewController *> *)viewControllers {
     NSMutableArray *array = [NSMutableArray arrayWithArray:viewControllers];
-    [viewControllers enumerateObjectsUsingBlock:^(UIViewController * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-        if (![self.popOutControllers containsObject:obj]) { [array removeObject:obj]; }
-    }];
-    self.popOutControllers = array;
-    self.removedPopOutViewController = nil;
+    if ([self isMemberOfClass:[UINavigationController class]]) {
+        [viewControllers enumerateObjectsUsingBlock:^(UIViewController * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            if (![self.popOutControllers containsObject:obj]) { [array removeObject:obj]; }
+        }];
+        self.popOutControllers = array;
+        self.removedPopOutViewController = nil;
+    }
     return array;
 }
 
@@ -384,7 +388,7 @@
 @implementation UIViewController (MFSPopAction)
 
 - (void)setDisableDragBack:(BOOL)disableDragBack {
-    objc_setAssociatedObject(self, @selector(disableDragBack), @(disableDragBack), OBJC_ASSOCIATION_ASSIGN);
+    objc_setAssociatedObject(self, @selector(disableDragBack), @(disableDragBack), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 - (BOOL)disableDragBack {
     return ((NSNumber *)objc_getAssociatedObject(self, _cmd)).boolValue;
