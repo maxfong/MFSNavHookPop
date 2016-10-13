@@ -334,7 +334,7 @@
     [self.view.superview.layer renderInContext:UIGraphicsGetCurrentContext()];
     UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
-    return image;
+    return image ?: UIImage.new;;
 }
 
 -(void)doMoveViewWithX:(CGFloat)x{
