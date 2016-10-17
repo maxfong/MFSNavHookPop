@@ -331,10 +331,12 @@
 #pragma mark -
 - (UIImage *)capture {
     UIGraphicsBeginImageContextWithOptions(self.view.superview.bounds.size, self.view.superview.opaque, 0.0);
-    [self.view.superview.layer renderInContext:UIGraphicsGetCurrentContext()];
+    if (![self.view.superview drawViewHierarchyInRect:self.view.bounds afterScreenUpdates:NO]) {
+        [self.view.superview.layer renderInContext:UIGraphicsGetCurrentContext()];
+    }
     UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
-    return image ?: UIImage.new;;
+    return image ?: UIImage.new;
 }
 
 -(void)doMoveViewWithX:(CGFloat)x{
