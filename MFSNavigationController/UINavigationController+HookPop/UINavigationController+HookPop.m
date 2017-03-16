@@ -360,9 +360,17 @@
 
 - (void)planScreenDragBack {
     [self.view.superview insertSubview:self.dragBackgroundView belowSubview:self.view];
-    NSUInteger index = (self.popOutControllers.count - 2) > 0 ? self.popOutControllers.count - 2 : 0;
+    NSInteger count = self.popOutControllers.count - 2;
+    NSUInteger index = 0;
+    if (count > 0) { index = count; }
     NSString *key = self.popOutControllers[index].aIdentifier;
-    self.dragBackgroundView.image = [self.screenShots objectForKey:key];
+    UIImage *image = [self.screenShots objectForKey:key];
+    //兼容 present UIImagePickerController
+    if (self.viewControllers.count == 2 && !image) {
+        key = self.viewControllers[index].aIdentifier;
+        image = [self.screenShots objectForKey:key];
+    }
+    self.dragBackgroundView.image = image;
 }
 
 - (NSMutableDictionary *)screenShots {
