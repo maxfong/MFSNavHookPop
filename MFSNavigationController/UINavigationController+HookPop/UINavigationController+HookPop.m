@@ -130,6 +130,7 @@
 
 #pragma mark - pushViewController
 - (void)mfshp_pushViewController:(UIViewController *)viewController animated:(BOOL)animated {
+    if (!viewController) return;
     BOOL popOut = NO;
     UIViewController *lastViewController = self.popOutControllers.lastObject;
     if ([lastViewController respondsToSelector:@selector(shouldPopActionSkipController)]) {
