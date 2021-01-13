@@ -132,8 +132,6 @@
 - (void)mfshp_pushViewController:(UIViewController *)viewController animated:(BOOL)animated {
     /*
      Crash防护，防止短时间内Push同一个vc多次
-     https://bugly.qq.com/v2/crash-reporting/crashes/900004346/2347296?pid=2
-     https://bugly.qq.com/v2/crash-reporting/crashes/900004346/2614198?pid=2
      */
     if (!viewController ||
         [self.viewControllers containsObject:viewController]){
@@ -201,10 +199,7 @@
 - (NSArray *)mfshp_popToViewController:(UIViewController *)viewController animated:(BOOL)animated {
     /*
      Crash防护，防止Pop 导航栈对不存在的vc
-     https://bugly.qq.com/v2/crash-reporting/crashes/900004346/2443466?pid=2
-     https://bugly.qq.com/v2/crash-reporting/crashes/900004346/2546912?pid=2
      */
-    
     if(!viewController ||
        ![self.viewControllers containsObject:viewController]){
         return self.viewControllers;
