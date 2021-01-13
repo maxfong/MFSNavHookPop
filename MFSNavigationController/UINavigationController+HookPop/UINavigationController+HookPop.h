@@ -49,6 +49,13 @@
  */
 @property (nonatomic, assign) BOOL disableDragBack;
 
+/** 支持滑动返回且底部无页面截图
+    开启会默认设置disableDragBack为NO
+    关闭会默认设置disableDragBack为YES
+    如有需要，设置enableFastDrag后再重新设置disableDragBack
+ */
+@property (nonatomic, assign) BOOL enableFastDrag;
+
 /** viewController标识符，生成后唯一且不可改变
  */
 @property (nonatomic, strong, readonly) NSString *aIdentifier;
