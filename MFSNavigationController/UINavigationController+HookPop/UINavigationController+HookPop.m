@@ -130,7 +130,16 @@
 
 #pragma mark - pushViewController
 - (void)mfshp_pushViewController:(UIViewController *)viewController animated:(BOOL)animated {
-    if (!viewController) return;
+    /*
+     Crash防护，防止短时间内Push同一个vc多次
+     https://bugly.qq.com/v2/crash-reporting/crashes/900004346/2347296?pid=2
+     https://bugly.qq.com/v2/crash-reporting/crashes/900004346/2614198?pid=2
+     */
+    if (!viewController ||
+        [self.viewControllers containsObject:viewController]){
+        return;
+    }
+    
     BOOL popOut = NO;
     UIViewController *lastViewController = self.popOutControllers.lastObject;
     if ([lastViewController respondsToSelector:@selector(shouldPopActionSkipController)]) {
@@ -190,12 +199,38 @@
 }
 
 - (NSArray *)mfshp_popToViewController:(UIViewController *)viewController animated:(BOOL)animated {
+    /*
+     Crash防护，防止Pop 导航栈对不存在的vc
+     https://bugly.qq.com/v2/crash-reporting/crashes/900004346/2443466?pid=2
+     https://bugly.qq.com/v2/crash-reporting/crashes/900004346/2546912?pid=2
+     */
+    
+    if(!viewController ||
+       ![self.viewControllers containsObject:viewController]){
+        return self.viewControllers;
+    }
+    
     NSArray *poppedControllers = [self mfshp_popToViewController:viewController animated:animated];
     UIViewController *lastViewController = poppedControllers.lastObject;
     if ([lastViewController respondsToSelector:@selector(popActionDidFinish)]) {
         [lastViewController popActionDidFinish];
     }
     [self.popOutControllers removeObjectsInArray:poppedControllers];
+    if (!poppedControllers) {
+        //判断是否为空,为空手动删除
+        NSMutableArray* tmpArr = [NSMutableArray array];
+        for (NSInteger i = (self.viewControllers.count - 1); i >= 0; i--) {
+            UIViewController* tempVC = [self.viewControllers objectAtIndex:i];
+            if (![tempVC isEqual:viewController]) {
+                [tmpArr addObject:tempVC];
+            }
+            else{
+                break;
+            }
+        }
+        [self.popOutControllers removeObjectsInArray:tmpArr];
+        return tmpArr;
+    }
     return poppedControllers;
 }
 
@@ -279,16 +314,21 @@
 
 #pragma mark -
 - (void)handleControllerPop:(UIPanGestureRecognizer *)recognizer {
-    CGPoint touchPoint = [recognizer locationInView:[[UIApplication sharedApplication]keyWindow]];
+    CGPoint touchPoint = [recognizer locationInView:[[UIApplication sharedApplication] keyWindow]];
     static CGFloat startX = 0;
     CGFloat offsetX = touchPoint.x - startX;
+    BOOL enableFastDrag = self.viewControllers.lastObject.enableFastDrag;
     if(recognizer.state == UIGestureRecognizerStateBegan) {
-        [self correctPopViewControllers];
-        [self planScreenDragBack];
+        if (!enableFastDrag) {
+            [self correctPopViewControllers];
+            [self planScreenDragBack];
+        }
         startX = touchPoint.x;
     }
     else if(recognizer.state == UIGestureRecognizerStateChanged) {
-        [self doMoveViewWithX:offsetX];
+        if (!enableFastDrag) {
+            [self doMoveViewWithX:offsetX];
+        }
     }
     else if(recognizer.state == UIGestureRecognizerStateEnded || recognizer.state == UIGestureRecognizerStateCancelled) {
         CGFloat width = [UIScreen mainScreen].bounds.size.width;
@@ -300,21 +340,32 @@
                 actionBlock = block;
             }];
         }
-        if (!hookPop && offsetX > (width/3) && recognizer.state != UIGestureRecognizerStateCancelled) {
-            [UIView animateWithDuration:0.15 animations:^{
-                [self doMoveViewWithX:width];
-            } completion:^(BOOL finished) {
-                [self completionDragBackAnimation];
+        if (enableFastDrag) {
+            if (!hookPop && offsetX > (width/10) && recognizer.state != UIGestureRecognizerStateCancelled) {
+                [self popViewControllerAnimated:YES];
                 [self recursionPopFinishFromViewController:popFromViewController];
-            }];
+            }
+            else {
+                if (hookPop && offsetX > (width/10) && actionBlock) { actionBlock(nil); }
+            }
         }
         else {
-            [UIView animateWithDuration:0.15 animations:^{
-                [self doMoveViewWithX:0];
-            } completion:^(BOOL finished) {
-                if (hookPop && offsetX > (width/3) && actionBlock) { actionBlock(nil); }
-                [self.dragBackgroundView removeFromSuperview];
-            }];
+            if (!hookPop && offsetX > (width/3) && recognizer.state != UIGestureRecognizerStateCancelled) {
+                [UIView animateWithDuration:0.15 animations:^{
+                    [self doMoveViewWithX:width];
+                } completion:^(BOOL finished) {
+                    [self completionDragBackAnimation];
+                    [self recursionPopFinishFromViewController:popFromViewController];
+                }];
+            }
+            else {
+                [UIView animateWithDuration:0.15 animations:^{
+                    [self doMoveViewWithX:0];
+                } completion:^(BOOL finished) {
+                    if (hookPop && offsetX > (width/3) && actionBlock) { actionBlock(nil); }
+                    [self.dragBackgroundView removeFromSuperview];
+                }];
+            }
         }
     }
 }
@@ -330,10 +381,12 @@
 }
 
 #pragma mark -
-- (UIImage *)capture {
+- (id)capture {
     UIGraphicsBeginImageContextWithOptions(self.view.superview.bounds.size, self.view.superview.opaque, 0.0);
-    if (![self.view.superview drawViewHierarchyInRect:self.view.bounds afterScreenUpdates:NO]) {
-        [self.view.superview.layer renderInContext:UIGraphicsGetCurrentContext()];
+    BOOL success = [self.view.superview drawViewHierarchyInRect:self.view.bounds afterScreenUpdates:NO];
+    if (!success) {
+        UIGraphicsEndImageContext();
+        return [self.view.superview snapshotViewAfterScreenUpdates:NO] ?: UIImage.new;
     }
     UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
@@ -366,12 +419,18 @@
     if (count > 0) { index = count; }
     NSString *key = self.popOutControllers[index].aIdentifier;
     UIImage *image = [self.screenShots objectForKey:key];
-    //兼容 present UIImagePickerController
-    if (self.viewControllers.count == 2 && !image) {
-        key = self.viewControllers[index].aIdentifier;
-        image = [self.screenShots objectForKey:key];
+    [self.dragBackgroundView.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
+    if ([image isKindOfClass:[UIImage class]]) {
+        //兼容 present UIImagePickerController
+        if (self.viewControllers.count == 2 && !image) {
+            key = self.viewControllers[index].aIdentifier;
+            image = [self.screenShots objectForKey:key];
+        }
+        self.dragBackgroundView.image = image;
     }
-    self.dragBackgroundView.image = image;
+    else if ([image isKindOfClass:[UIView class]]) {
+        [self.dragBackgroundView addSubview:((UIView *)image)];
+    }
 }
 
 - (NSMutableDictionary *)screenShots {
@@ -402,6 +461,14 @@
     objc_setAssociatedObject(self, @selector(disableDragBack), @(disableDragBack), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 - (BOOL)disableDragBack {
+    return ((NSNumber *)objc_getAssociatedObject(self, _cmd)).boolValue;
+}
+
+- (void)setEnableFastDrag:(BOOL)enableFastDrag {
+    self.disableDragBack = !enableFastDrag;
+    objc_setAssociatedObject(self, @selector(enableFastDrag), @(enableFastDrag), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+- (BOOL)enableFastDrag {
     return ((NSNumber *)objc_getAssociatedObject(self, _cmd)).boolValue;
 }
 
